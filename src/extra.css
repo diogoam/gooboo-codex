@@ -1,0 +1,13 @@
+/* Extras do userscript: barra de ferramentas, status ao vivo, mensagens, painel embutido */
+.brand{justify-content:space-between;align-items:center}
+.brand .tools{display:inline-flex;gap:4px}
+.ib{font:700 14px var(--f-body);width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;display:inline-grid;place-items:center;padding:0}
+.ib:disabled{opacity:.35;cursor:default}
+.live{display:flex;gap:8px;align-items:center;margin:0 16px 10px;font:600 13px var(--f-body);color:var(--muted)}
+.st-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.st-dot.on{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 25%,transparent)}
+.rail-links{padding:0 16px 10px}
+.msgbox{padding:32px 24px;font:15px/1.55 var(--f-body);color:var(--ink)}
+.wrap{height:100%;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body)}
+body{margin:0}
+.brand h1{font-size:22px}

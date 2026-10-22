@@ -1,0 +1,1 @@
+npx esbuild entry.js --bundle --platform=node --format=cjs --inject:shim.js --outfile=bundle.js --loader:.vue=empty --define:process.env.NODE_ENV='"production"' --alias:@=../gooboo/src --alias:vuetify/lib/locale=./stubs/empty.js --alias:js-file-download=./stubs/empty.js --log-limit=0
