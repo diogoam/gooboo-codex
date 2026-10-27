@@ -14,7 +14,7 @@ const BY = Object.fromEntries(DATA.map(e => [e.id, e]));
 const FEAT_NAMES = {};
 DATA.filter(e => e.c === 'Feature').forEach(e => FEAT_NAMES[e.k] = e.n);
 const FEAT_VAR = {mining:'--mining',village:'--village',horde:'--horde',farm:'--farm',gallery:'--gallery'};
-const CAT_ORDER = ['Conceito','Feature','Moeda','Gema','Estatística','Upgrade','Building','Upgrade de prestige','Upgrade premium','Upgrade de shapes','Unlock','Relic','Glyph','Card','Coleção de cards','Card pack','Achievement','Livro','General','Questline','Note','Enhancement','Beacon','Smeltery','Job','Policy','Offering','Receita','Equipamento','Heirloom','Trinket','Sigil','Classe','Área','Torre','Crop','Gene','Farm building','Ideia','Shape','Matéria','Efeito de treasure','Consumível','Upgrade de evento'];
+const CAT_ORDER = ['Conceito','Feature','Event','Moeda','Gema','Estatística','Upgrade','Building','Upgrade de prestige','Upgrade premium','Upgrade de shapes','Unlock','Relic','Glyph','Card','Coleção de cards','Card pack','Achievement','Livro','General','Questline','Note','Enhancement','Beacon','Smeltery','Job','Policy','Offering','Receita','Equipamento','Heirloom','Trinket','Sigil','Classe','Área','Torre','Crop','Gene','Farm building','Ideia','Shape','Matéria','Efeito de treasure','Consumível','Upgrade de evento'];
 const cats = [...new Set(DATA.map(e => e.c))].sort((a,b) => (CAT_ORDER.indexOf(a)+1||99) - (CAT_ORDER.indexOf(b)+1||99));
 const tok = id => id.replace(/:/g, '~');
 const untok = t => decodeURIComponent(t).replace(/~/g, ':');
@@ -106,7 +106,7 @@ function labHTML(e){ try { return LAB.forEntry(e); } catch (err) { console.warn(
 function rerenderCurrent(){ if (!currentId) return; const y = mainEl.scrollTop; renderEntry(BY[currentId]); mainEl.scrollTop = y; }
 function renderHome(){
   const counts = {}; DATA.forEach(e => counts[e.c] = (counts[e.c] || 0) + 1);
-  const starts = ['concept:gl','concept:prestige','concept:mult','concept:overcap','concept:dweller','concept:cards','concept:general','concept:cryolab','feat:mining','feat:village','feat:horde','feat:farm','feat:gallery'].filter(id => BY[id]);
+  const starts = ['concept:tick','concept:gl','concept:prestige','concept:events','concept:mult','concept:overcap','concept:dweller','concept:cards','concept:general','concept:cryolab','feat:mining','feat:village','feat:horde','feat:farm','feat:gallery'].filter(id => BY[id]);
   const info = LAB.info();
   pageEl.innerHTML = `<div class="home">
     <button type="button" class="back-btn" id="toList">← Índice</button>
