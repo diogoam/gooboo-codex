@@ -56,6 +56,7 @@ node extract.js          # data/gooboo-data.json
 node extract2.js         # notes, cards, generals
 npx esbuild colentry.js --bundle --platform=node --outfile=colbundle.js && node -e "require('./colbundle.js');require('fs').writeFileSync('colors.json',JSON.stringify(globalThis.__colors))"   # colors.json
 node glossary.js         # glossary.json (~2.900 verbetes)
+node enrich.js           # moedas/gemas EN-first: How to get it / What it does, seções Prestige
 cd ../gooboo-codex && node tools/build.js ../gbx
 ```
 

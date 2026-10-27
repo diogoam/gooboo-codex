@@ -84,14 +84,23 @@ function renderEntry(e){
     <button type="button" class="back-btn" id="toList">← Índice</button>
     <div class="crumbs"><span class="tag">${esc(e.c)}</span>${FEAT_NAMES[e.f] ? `<a class="tag f" style="background:${fc}" href="#feat~${esc(e.f)}">${esc(FEAT_NAMES[e.f])}</a>` : ''}</div>
     <h2>${sw ? `<span class="swatch" style="background:${sw}" title="cor no jogo: ${esc(e.col)}"></span>` : ''}${esc(e.n)}</h2>
-    <div class="key">id interno: <button type="button" id="copyKey" title="Copiar">${esc(e.k)}</button>${e.nui ? ' · nome descritivo (o jogo não exibe um nome para isto)' : ''}</div>
-    ${e.d ? `<div class="desc"><small>Texto do jogo</small>${rich(e.d)}</div>` : ''}
-    ${labHTML(e)}
-    ${e.s.map(s => `<section class="s"><h3>${esc(s.h)}</h3><ul>${s.b.map(b => `<li>${rich(b)}</li>`).join('')}</ul></section>`).join('')}
-    ${back.length ? `<details class="back"${back.length <= 12 ? ' open' : ''}><summary>Aparece em ${back.length} verbete${back.length > 1 ? 's' : ''}</summary><ul>${back.slice(0, 300).map(b => `<li><a class="x" href="#${tok(b.id)}">${esc(b.n)}</a> <span class="key">${esc(b.c)}</span></li>`).join('')}</ul></details>` : ''}`;
-  $('copyKey').onclick = ev => { navigator.clipboard?.writeText(e.k).then(() => ev.target.textContent = 'copiado ✓', () => {}); };
+    <div class="key">internal id: <button type="button" id="copyKey" title="Copy">${esc(e.k)}</button>${e.nui ? ' · descriptive name (the game shows no name for this)' : ''}</div>
+    ${sectionsHTML(e)}
+    ${back.length ? `<details class="back"${back.length <= 12 ? ' open' : ''}><summary>Appears in ${back.length} entr${back.length > 1 ? 'ies' : 'y'}</summary><ul>${back.slice(0, 300).map(b => `<li><a class="x" href="#${tok(b.id)}">${esc(b.n)}</a> <span class="key">${esc(b.c)}</span></li>`).join('')}</ul></details>` : ''}`;
+  $('copyKey').onclick = ev => { navigator.clipboard?.writeText(e.k).then(() => ev.target.textContent = 'copied ✓', () => {}); };
   $('toList').onclick = () => { appEl.classList.remove('reading'); };
   try { LAB.bindEntry(pageEl); } catch (err) { console.warn('[Codex]', err); }
+}
+// Order: What it is (game text inside) → How to get it → What it does → How it's calculated → affected by → calculators → groups
+function sectionsHTML(e){
+  const sec = s => `<section class="s"><h3>${esc(s.h)}</h3><ul>${s.b.map(b => `<li>${rich(b)}</li>`).join('')}</ul></section>`;
+  const desc = e.d ? `<div class="desc"><small>Game text</small>${rich(e.d)}</div>` : '';
+  const isGroup = s => /^(Groups|Grupos|Grupo)$/.test(s.h);
+  const main = e.s.filter(s => !isGroup(s)), tail = e.s.filter(isGroup);
+  let html = '';
+  if (main.length && /^(What it is|O que é)$/.test(main[0].h)) html += `<section class="s"><h3>${esc(main[0].h)}</h3>${desc}<ul>${main[0].b.map(b => `<li>${rich(b)}</li>`).join('')}</ul></section>` + main.slice(1).map(sec).join('');
+  else html += desc + main.map(sec).join('');
+  return html + labHTML(e) + tail.map(sec).join('');
 }
 function labHTML(e){ try { return LAB.forEntry(e); } catch (err) { console.warn('[Codex]', err); return `<p class="hint">Calculadora indisponível para este verbete (${esc(err.message)}).</p>`; } }
 function rerenderCurrent(){ if (!currentId) return; const y = mainEl.scrollTop; renderEntry(BY[currentId]); mainEl.scrollTop = y; }
