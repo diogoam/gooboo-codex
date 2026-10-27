@@ -210,7 +210,7 @@
   const GA = window.GooAssist;
 
   const VERSION = '1.1.0';
-  const DATA_HASH = 'e8becebca99f';
+  const DATA_HASH = '078d391d5604';
   const DATA_URLS = [
     'https://raw.githubusercontent.com/diogoam/gooboo-codex/main/data/codex-data.json',
     'https://cdn.jsdelivr.net/gh/diogoam/gooboo-codex@main/data/codex-data.json',

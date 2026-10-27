@@ -257,7 +257,7 @@ const PRESTIGE = {
   farm: [`No feature-wide prestige: each crop prestiges on its own. A crop prestige resets that crop's level and raises its record; every level above the record gives ×1.04 to that crop.`,
     `Crop records also feed Farm Global level (per crop: min(level, level÷2+5, 25)).`],
   gallery: [`${L('feat:gallery')} → ${C('gallery_cash')} = 10^(log₈(beauty ÷ 1e11)^0.7) × Cash gain; needs at least 1e12 beauty this run.`,
-    `Resets: regular upgrades, regular currencies (beauty, paints, drums, shapes, motivation), run stats. Keeps: prestige and premium upgrades, ideas you own (levels reset), shape upgrades.`,
+    `Resets: regular upgrades, regular currencies (beauty, paints, drums, shapes, motivation), run stats, idea levels (owned ideas stay owned), canvas spaces and the shape board. Keeps: prestige and premium upgrades, shape upgrades.`,
     `When: ×8 beauty gives much less than ×2 cash, so short frequent runs usually win; prestige when cash/hour stops rising.`],
 };
 for (const [f, lines] of Object.entries(PRESTIGE)) { const e = BY['feat:' + f]; if (!e) continue; e.s = e.s.filter(x => x.h !== 'Prestige'); e.s.splice(1, 0, { h: 'Prestige', b: lines }); }
