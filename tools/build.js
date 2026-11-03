@@ -69,6 +69,7 @@ const header = `// ==UserScript==
 // @version      ${VERSION}
 // @description  Fan wiki clicável do Gooboo dentro do jogo: todo termo com o nome da interface, de onde vem, como destrava, calculadoras ligadas ao seu jogo ao vivo, planejador de run e "o que falta" por feature. Só lê o jogo.
 // @author       diogoam
+// @icon         https://tendsty.github.io/gooboo/favicon-32x32.png
 // @homepageURL  https://github.com/diogoam/gooboo-codex
 // @match        https://tendsty.github.io/gooboo/*
 // @grant        none
@@ -79,6 +80,7 @@ const header = `// ==UserScript==
 `;
 const out = header + '\n' + rd('src/main.js')
   .replace('/*__CORE__*/', () => rd('src/core.js').replace(/\n$/, ''))
+  .replace('/*__DOCKSORT__*/', '') // ordenador do dock: pronto em src/docksort.js, esperando o ok do jogador
   .replace('/*__APP__*/', () => indent(app))
   .replace('__VERSION__', VERSION)
   .replace('__DATAHASH__', data.hash)

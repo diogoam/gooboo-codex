@@ -44,25 +44,45 @@ for (const e of DATA) {
 // ---------- busca ----------
 let activeCat = null; let currentId = null; let currentRoute = null;
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-const INDEX = DATA.map(e => ({e, n: norm(e.n), k: norm(e.k), c: norm(e.c), d: norm(e.d)}));
+// texto pesquisável de cada verbete: seções com os nomes no lugar dos {{id}}
+const plain = t => String(t || '').replace(/\{\{([^}]+)\}\}/g, (m, id) => BY[id]?.n || id).replace(/\*\*|«|»/g, '');
+const INDEX = DATA.map(e => {
+  const secs = e.s.map(s => ({ h: s.h, t: plain(s.b.join(' · ')) }));
+  return { e, n: norm(e.n), k: norm(e.k), c: norm(e.c), d: norm(plain(e.d)), dRaw: plain(e.d), secs, t: secs.map(x => norm(x.t)) };
+});
+const TOOLS = [{ id: 'missing', n: "What's missing (O que falta)", c: 'Tool', words: "what's missing o que falta closest to getting mais perto de sair everything tudo notes unlocks upgrades cards relics questlines achievements" }];
+const snip = (raw, nq) => {
+  const i = norm(raw).indexOf(nq); if (i < 0) return '';
+  const a = Math.max(0, i - 40), b = Math.min(raw.length, i + nq.length + 60);
+  return (a > 0 ? '…' : '') + raw.slice(a, b) + (b < raw.length ? '…' : '');
+};
+let lastHits = new Map();
 function search(q){
   const nq = norm(q.trim());
+  lastHits = new Map();
   let rows = INDEX.filter(r => !activeCat || r.e.c === activeCat);
   if (!nq) return rows.map(r => r.e).sort((a,b) => a.n.localeCompare(b.n, undefined, {numeric: true}));
   const scored = [];
   for (const r of rows) {
-    let sc = 0;
+    let sc = 0, hit = null;
     if (r.n === nq) sc = 100; else if (r.n.startsWith(nq)) sc = 80; else if (r.n.includes(nq)) sc = 60;
-    else if (r.k.includes(nq)) sc = 40; else if (r.d.includes(nq)) sc = 15; else if (r.c.includes(nq)) sc = 10;
-    if (sc) scored.push([sc + (r.e.c === 'Conceito' || r.e.c === 'Moeda' || r.e.c === 'Gema' ? 5 : 0), r.e]);
+    else if (r.k.includes(nq)) sc = 40;
+    else if (r.d.includes(nq)) { sc = 15; hit = { h: 'Game text', s: snip(r.dRaw, nq) }; }
+    else { const i = r.t.findIndex(t => t.includes(nq)); if (i >= 0) { sc = 12; hit = { h: r.secs[i].h, s: snip(r.secs[i].t, nq) }; } else if (r.c.includes(nq)) sc = 10; }
+    if (!sc) continue;
+    // guias e conceitos primeiro quando empatam
+    sc += r.e.c === 'Event' ? 8 : (r.e.c === 'Conceito' || r.e.c === 'Moeda' || r.e.c === 'Gema') ? 5 : 0;
+    if (hit) lastHits.set(r.e.id, hit);
+    scored.push([sc, r.e]);
   }
+  if (!activeCat) for (const t of TOOLS) if (norm(t.n + ' ' + t.words).includes(nq)) scored.push([70, t]);
   return scored.sort((a,b) => b[0]-a[0] || a[1].n.localeCompare(b[1].n, undefined, {numeric: true})).map(x => x[1]);
 }
 const listEl = $('list'), countEl = $('count'), qEl = $('q');
 function renderList(){
   const res = search(qEl.value); const shown = res.slice(0, 400);
-  countEl.textContent = `${res.length.toLocaleString('pt-BR')} verbetes${res.length > 400 ? ' · mostrando 400' : ''}`;
-  listEl.innerHTML = shown.map(e => `<li><button type="button" data-id="${esc(e.id)}"${e.id === currentId ? ' aria-current="true"' : ''}><span class="dot" style="background:${swatch(e) || featColor(e.f)}"></span><span class="nm">${esc(e.n)}</span><span class="ct">${esc(e.c)}</span></button></li>`).join('');
+  countEl.textContent = `${res.length.toLocaleString('en-US')} entries${res.length > 400 ? ' · showing 400' : ''}`;
+  listEl.innerHTML = shown.map(e => `<li><button type="button" data-id="${esc(e.id)}"${e.id === currentId ? ' aria-current="true"' : ''}><span class="dot" style="background:${swatch(e) || featColor(e.f)}"></span><span class="nm">${esc(e.n)}</span><span class="ct">${esc(e.c)}</span>${lastHits.has(e.id) ? `<span class="hit"><b>${esc(SEC_SLOT[lastHits.get(e.id).h] ? (SEC_TITLE[slotOf(lastHits.get(e.id).h)[0]] || lastHits.get(e.id).h) : lastHits.get(e.id).h)}:</b> ${esc(lastHits.get(e.id).s)}</span>` : ''}</button></li>`).join('');
 }
 listEl.addEventListener('click', ev => { const b = ev.target.closest('button[data-id]'); if (b) go(b.dataset.id); });
 let t; qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(renderList, 80); });
@@ -86,21 +106,48 @@ function renderEntry(e){
     <h2>${sw ? `<span class="swatch" style="background:${sw}" title="cor no jogo: ${esc(e.col)}"></span>` : ''}${esc(e.n)}</h2>
     <div class="key">internal id: <button type="button" id="copyKey" title="Copy">${esc(e.k)}</button>${e.nui ? ' · descriptive name (the game shows no name for this)' : ''}</div>
     ${sectionsHTML(e)}
-    ${back.length ? `<details class="back"${back.length <= 12 ? ' open' : ''}><summary>Appears in ${back.length} entr${back.length > 1 ? 'ies' : 'y'}</summary><ul>${back.slice(0, 300).map(b => `<li><a class="x" href="#${tok(b.id)}">${esc(b.n)}</a> <span class="key">${esc(b.c)}</span></li>`).join('')}</ul></details>` : ''}`;
+    ${appearsHTML(e, back)}`;
   $('copyKey').onclick = ev => { navigator.clipboard?.writeText(e.k).then(() => ev.target.textContent = 'copied ✓', () => {}); };
   $('toList').onclick = () => { appEl.classList.remove('reading'); };
   try { LAB.bindEntry(pageEl); } catch (err) { console.warn('[Codex]', err); }
 }
-// Order: What it is (game text inside) → How to get it → What it does → How it's calculated → affected by → calculators → groups
+// Order (decided with the player): What it is (game text inside) → How to get it → What it does (+ specific sections)
+// → How it's calculated → Gain affected by → Capacity affected by → Calculators → Groups → Appears in.
+// The data keeps its original headings (calc.js reads them); here they are mapped to the canonical order and merged.
+const SEC_SLOT = {
+  'O que é': [1, null], 'What it is': [1, null], 'O que mede': [1, 'What it measures'],
+  'De onde vem': [2, 'Source'], 'Como destrava': [2, 'Unlock'], 'Destrava': [2, 'Unlock'], 'Custo': [2, 'Cost'], 'How to get it': [2, null],
+  'Efeitos': [3, 'Effects'], 'What it does': [3, null], 'Efeito quando equipada': [3, 'When equipped'], 'Usada para comprar': [3, 'Used to buy'],
+  'O que este unlock libera': [3, 'What it unlocks'], 'Níveis': [3, 'Levels'], 'Efeitos por nível': [3, 'Per level'], 'Efeito por cópia': [3, 'Per copy'],
+  'Bônus ao completar': [3, 'On completion'], 'Efeito especial': [3, 'Special effect'], 'Habilidade ativa': [3, 'Active ability'], 'Bônus de cards': [3, 'Card bonus'],
+  'Como é calculado': [5, null], "How it's calculated": [5, null], 'Fórmula': [5, 'Formula'],
+  'Afetado por': [6, null], 'Gain affected by': [6, null], 'Capacity affected by': [7, null],
+  'Groups': [9, null], 'Grupos': [9, null], 'Grupo': [9, null], 'Mencionado por': [10, null],
+};
+const SEC_TITLE = { 10: 'Appears in', 1: 'What it is', 2: 'How to get it', 3: 'What it does', 5: "How it's calculated", 6: 'Gain affected by', 7: 'Capacity affected by', 9: 'Groups' };
+const slotOf = h => SEC_SLOT[h] || (/^Efeitos \(nível/.test(h) ? [3, h.replace('Efeitos (nível', 'Effects (level')] : [4, null]);
+function appearsHTML(e, back){
+  const men = e.s.filter(s => s.h === 'Mencionado por').flatMap(s => s.b);
+  if (!back.length && !men.length) return '';
+  const n = back.length;
+  return `<details class="back"${n <= 12 ? ' open' : ''}><summary>Appears in${n ? ` ${n} entr${n > 1 ? 'ies' : 'y'}` : ''}</summary>${men.length ? `<ul class="men">${men.map(x => `<li>${rich(x)}</li>`).join('')}</ul>` : ''}${n ? `<ul>${back.slice(0, 300).map(b => `<li><a class="x" href="#${tok(b.id)}">${esc(b.n)}</a> <span class="key">${esc(b.c)}</span></li>`).join('')}</ul>` : ''}</details>`;
+}
 function sectionsHTML(e){
-  const sec = s => `<section class="s"><h3>${esc(s.h)}</h3><ul>${s.b.map(b => `<li>${rich(b)}</li>`).join('')}</ul></section>`;
+  const lis = b => `<ul>${b.map(x => `<li>${rich(x)}</li>`).join('')}</ul>`;
   const desc = e.d ? `<div class="desc"><small>Game text</small>${rich(e.d)}</div>` : '';
-  const isGroup = s => /^(Groups|Grupos|Grupo)$/.test(s.h);
-  const main = e.s.filter(s => !isGroup(s)), tail = e.s.filter(isGroup);
-  let html = '';
-  if (main.length && /^(What it is|O que é)$/.test(main[0].h)) html += `<section class="s"><h3>${esc(main[0].h)}</h3>${desc}<ul>${main[0].b.map(b => `<li>${rich(b)}</li>`).join('')}</ul></section>` + main.slice(1).map(sec).join('');
-  else html += desc + main.map(sec).join('');
-  return html + labHTML(e) + tail.map(sec).join('');
+  // guides (Event) keep their narrative order
+  if (e.c === 'Event') return desc + e.s.map(s => `<section class="s"><h3>${esc(s.h)}</h3>${lis(s.b)}</section>`).join('') + labHTML(e);
+  const slots = {};
+  for (const s of e.s) { const [n, sub] = slotOf(s.h); (slots[n] = slots[n] || []).push({ s, sub }); }
+  const merged = n => {
+    const parts = slots[n] || [];
+    if (n === 1 && !parts.length && !desc) return '';
+    if (n !== 1 && !parts.length) return '';
+    const body = parts.map(({ s, sub }) => (parts.length > 1 && sub ? `<h4 class="sub">${esc(sub)}</h4>` : (sub && n !== 1 ? `<h4 class="sub">${esc(sub)}</h4>` : '')) + lis(s.b)).join('');
+    return `<section class="s"><h3>${SEC_TITLE[n]}</h3>${n === 1 ? desc : ''}${body}</section>`;
+  };
+  const other = (slots[4] || []).map(({ s }) => `<section class="s"><h3>${esc(s.h)}</h3>${lis(s.b)}</section>`).join('');
+  return merged(1) + merged(2) + merged(3) + other + merged(5) + merged(6) + merged(7) + labHTML(e) + merged(9);
 }
 function labHTML(e){ try { return LAB.forEntry(e); } catch (err) { console.warn('[Codex]', err); return `<p class="hint">Calculadora indisponível para este verbete (${esc(err.message)}).</p>`; } }
 function rerenderCurrent(){ if (!currentId) return; const y = mainEl.scrollTop; renderEntry(BY[currentId]); mainEl.scrollTop = y; }
@@ -132,7 +179,7 @@ function renderMissing(){
   lsSet('miss', missTab);
   const f = $('missq');
   if (f) {
-    f.oninput = () => { const q = norm(f.value); pageEl.querySelectorAll('.miss-item').forEach(a => { a.hidden = q && !norm(a.textContent).includes(q); }); pageEl.querySelectorAll('details.mgroup').forEach(d => { if (q) d.open = [...d.querySelectorAll('.miss-item')].some(x => !x.hidden); }); };
+    f.oninput = () => { const q = norm(f.value); pageEl.querySelectorAll('.miss-item, .tudo tbody tr').forEach(a => { a.hidden = q && !norm(a.textContent).includes(q); }); pageEl.querySelectorAll('details.mgroup').forEach(d => { if (q) d.open = [...d.querySelectorAll('.miss-item')].some(x => !x.hidden); }); };
     f.onkeydown = ev => ev.stopPropagation();
     if (prevQ) { f.value = prevQ; f.oninput(); }
   }

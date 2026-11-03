@@ -614,7 +614,7 @@ const LAB = (() => {
     },
   };
   const str2 = (c) => !!BY['cur:gallery_' + c] && !BY['cur:gallery_' + c].nui;
-  const TABS = [['resumo', 'Resumo'], ['mining', null], ['village', null], ['horde', null], ['farm', null], ['gallery', null], ['cards', null], ['meta', 'Outros']];
+  const TABS = [['resumo', 'Summary'], ['mining', null], ['village', null], ['horde', null], ['farm', null], ['gallery', null], ['cards', null], ['meta', 'Other']];
   const tabTitle = (k) => k === 'cards' ? nm('feat:card') : (TABS.find(t => t[0] === k)[1] || nm('feat:' + k));
   const buildTab = (k) => {
     const gs = builders[k]();
@@ -623,7 +623,96 @@ const LAB = (() => {
   };
   const renderItems = (g) => {
     const items = g.items.slice().sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || natural(a.name, b.name));
-    return items.map(it => `<article class="miss-item"><h4>${link(it.id)}${it.pct !== null && it.pct >= 0.9 ? ' <span class="tag near">perto</span>' : ''}</h4><div>${it.how}</div>${it.extra ? `<div class="hint">${it.extra}</div>` : ''}</article>`).join('');
+    return items.map(it => `<article class="miss-item"><h4>${link(it.id)}${it.pct !== null && it.pct >= 0.9 ? ' <span class="tag near">close</span>' : ''}</h4><div>${it.how}</div>${it.extra ? `<div class="hint">${it.extra}</div>` : ''}</article>`).join('');
+  };
+
+  // ---------- 1.3: "Closest to getting" (com recurso real, ETA e impacto) e "Everything" ----------
+  const gaRate = (c) => { try { const r = window.GooAssist?.rate?.(c); return r > 0 ? r : null; } catch { return null; } };
+  const IMPACT = [
+    [e => e.type === 'unlock' || /^(galleryIdea|galleryShape|villageCraft|farmSeed)$/.test(e.type), '🔓 new part of the game', 100],
+    [e => /Cap$/.test(e.name), '📦 capacity', 0],
+    [e => /Damage|Attack|Health|Toughness|PickaxeCraftingPower/.test(e.name), '⚔ power', 0],
+    [e => /Speed|Grow|Time|Haste|Interval/.test(e.name), '⏩ speed', 0],
+    [e => /Gain$|Experience|Chance$/.test(e.name), '📈 gain', 0],
+  ];
+  const upImpact = (u) => {
+    let best = null;
+    for (const e of u.effect || []) {
+      const rule = IMPACT.find(r => r[0](e)); const label = rule ? rule[1] : '✨ other';
+      let sc = rule ? rule[2] : 0, txt = label;
+      if (e.type === 'mult') { const a = tryv(() => e.value(u.level), 1), b2 = tryv(() => e.value(u.level + 1), 1); if (a > 0 && b2 > 0 && b2 !== a) { sc += Math.abs(Math.log(b2 / a)) * 10; txt += ` ×${fmt(b2 / a, 3)}`; } }
+      else if (e.type === 'base' || e.type === 'bonus') { const a = tryv(() => e.value(u.level), 0), b2 = tryv(() => e.value(u.level + 1), 0); if (b2 !== a) { sc += 1; txt += ` +${fmt(b2 - a, 3)}`; } }
+      if (!best || sc > best.sc) best = { sc, txt };
+    }
+    return best || { sc: 0, txt: '✨ other' };
+  };
+  const KIND = { 'unl:': '🔓 unlock', 'relic:': '🏺 relic', 'note:': '📝 note', 'quest:': '📜 questline', 'ach:': '🏆 achievement', 'crop:': '🌱 crop', 'card:': '🃏 card', 'col:': '🃏 collection', 'book:': '📚 book', 'equip:': '⚔ equipment', 'heir:': '🍀 heirloom', 'tower:': '🏰 tower', 'craft:': '🔨 recipe', 'idea:': '💡 idea', 'shape:': '🔷 shape', 'cur:': '💰 currency', 'smelt:': '🔥 bar', 'beacon:': '🗼 beacon' };
+  const kindChip = (id) => { const k = Object.keys(KIND).find(p => id.startsWith(p)); return k ? KIND[k] : ''; };
+  function classify(it) {
+    const out = { state: null, chip: kindChip(it.id), sc: 0, eta: null, why: '' };
+    if (it.id.startsWith('upg:')) {
+      const u = S.upgrade.item[it.id.slice(4)];
+      if (u && !(u.cap !== null && u.cap !== undefined && u.bought >= u.cap)) {
+        const req = tryv(() => u.requirement(u.bought), true);
+        const price = tryv(() => u.price(u.bought), {}) || {};
+        const imp = upImpact(u); out.chip = imp.txt; out.sc = imp.sc;
+        if (req) {
+          let eta = 0, over = null, noInc = null;
+          for (const [c, v] of Object.entries(price)) {
+            const cu = S.currency[c]; const have = cu?.value ?? 0;
+            if (cu?.cap && v > cu.cap) over = c;
+            if (have >= v) continue;
+            const r = gaRate(c);
+            if (!r) { noInc = c; eta = Infinity; } else eta = Math.max(eta, (v - have) / r);
+          }
+          if (canPay(price)) out.state = 'now';
+          else if (over) { out.state = 'far'; out.why = `price above the ${curLink(over)} cap`; }
+          else if (isFinite(eta)) { out.state = 'soon'; out.eta = eta; }
+          else { out.state = 'far'; out.why = `no ${curLink(noInc)} income measured right now`; }
+          out.price = priceHtml(price);
+          return out;
+        }
+      }
+    }
+    if (it.pct !== null && it.pct >= 0.9 && it.pct < 1) out.state = 'close';
+    else if (it.pct !== null && it.pct >= 0.5 && it.pct < 0.9) out.state = 'further';
+    return out;
+  }
+  const closestHTML = (built) => {
+    const seen = new Set(), rows = { now: [], soon: [], close: [], further: [], far: [] };
+    for (const [k] of TABS) if (k !== 'resumo') for (const g of built[k]) if (!g.info) for (const it of g.items) {
+      if (seen.has(it.id)) continue; seen.add(it.id);
+      const c = classify(it); if (!c.state) continue;
+      if (c.state === 'far' && !(it.pct >= 0.5)) continue;
+      rows[c.state].push({ k, g, it, c });
+    }
+    rows.now.sort((a, b) => b.c.sc - a.c.sc);
+    rows.soon.sort((a, b) => a.c.eta - b.c.eta);
+    rows.close.sort((a, b) => b.it.pct - a.it.pct || b.c.sc - a.c.sc);
+    rows.further.sort((a, b) => b.it.pct - a.it.pct);
+    const art = ({ k, g, it, c }) => `<article class="miss-item"><h4>${link(it.id)}${c.chip ? ` <span class="chip-i">${esc(c.chip)}</span>` : ''}${c.state === 'now' ? ' <span class="chip-i now">buy now</span>' : c.state === 'soon' ? ` <span class="chip-i">in ${time(c.eta)}</span>` : c.why ? ` <span class="chip-i warn">${c.why}</span>` : ''} <span class="key">${esc(tabTitle(k))} · ${esc(g.title)}</span></h4>${c.price ? `<div>Next level: ${c.price}</div>` : `<div>${it.how}</div>`}${it.extra ? `<div class="hint">${it.extra}</div>` : ''}</article>`;
+    const block = (title, list, n, hint, open = true) => list.length ? `<details class="mgroup"${open ? ' open' : ''}><summary><b>${title}</b> <span class="num">${list.length}</span></summary>${hint ? `<p class="hint">${hint}</p>` : ''}<div class="miss-list">${list.slice(0, n).map(art).join('')}</div></details>` : '';
+    const html = block('Buy now', rows.now, 40, 'Requirement met and you have the resources. Sorted by impact (new part of the game first, then the biggest multiplier).')
+      + block('Soon', rows.soon, 30, 'Requirement met; time until the resources arrive at the income measured right now (the helper core samples every 4 s, so a few seconds after loading).')
+      + block('Close to the requirement (≥ 90%)', rows.close, 40, 'The requirement is almost met; check the cost in the entry.')
+      + block('Further away (50–90%)', rows.further, 30, '', false)
+      + block('Blocked by cap or with no income', rows.far, 30, 'Requirement met, but the price is above the cap or nothing produces that currency now.', false);
+    return html ? `<h3 class="mh">Closest to getting</h3>${html}` : '';
+  };
+  const everythingHTML = (built) => {
+    const rows = [];
+    for (const [k] of TABS) if (k !== 'resumo') for (const g of built[k]) {
+      const have = g.total - g.items.length;
+      rows.push({ k, g, done: !g.info && g.items.length === 0, r: g.info ? 2 : (g.total > 0 ? have / g.total : 0) });
+    }
+    rows.sort((a, b) => (a.done - b.done) || (b.r - a.r) || (a.g.items.length - b.g.items.length));
+    const tr = ({ k, g, done }) => {
+      const names = g.items.map(it => it.name);
+      const tip = done ? 'Complete' : (g.info ? 'Ready: ' : 'Missing: ') + names.slice(0, 15).join(', ') + (names.length > 15 ? `… (+${names.length - 15})` : '');
+      const list = done ? `<p class="hint">All ${g.total} done ✓</p>` : `<ul>${g.items.slice(0, 60).map(it => `<li>${link(it.id)} — ${it.how}</li>`).join('')}${g.items.length > 60 ? `<li class="hint">… and ${g.items.length - 60} more (open the ${esc(tabTitle(k))} tab)</li>` : ''}</ul>`;
+      return `<tr class="${done ? 'done' : ''}"><td><a class="x" href="#missing" data-goto="${k}">${esc(tabTitle(k))}</a></td><td><details title="${esc(tip)}"><summary class="tt">${esc(g.title)}</summary>${list}</details></td><td class="num">${g.info ? g.items.length + ' ready' : done ? '✓' : g.items.length + ' of ' + g.total}</td><td>${g.info ? '' : bar(g.total - g.items.length, g.total)}</td></tr>`;
+    };
+    return `<h3 class="mh">Everything</h3><p class="hint">Closest to complete first; complete rows are struck through at the end. Click a category (or hover it) to see what is missing.</p><div class="tbl tudo"><table><thead><tr><th>Feature</th><th>Category</th><th>Missing</th><th>Progress</th></tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></div>`;
   };
   const missingPage = (tab = 'resumo') => {
     if (!ok) return '<p>Calculadoras indisponíveis.</p>';
@@ -634,19 +723,14 @@ const LAB = (() => {
     const missCount = (k) => built[k].reduce((a, g) => a + (g.info ? 0 : g.items.length), 0);
     const tabs = TABS.map(([k]) => `<button type="button" role="tab" class="cat" aria-pressed="${k === tab}" data-tab="${k}">${esc(tabTitle(k))}${k !== 'resumo' ? ` (${missCount(k)})` : ''}</button>`).join('');
     let body;
-    if (tab === 'resumo') {
-      body = `<div class="tbl"><table><thead><tr><th>Feature</th><th>Categoria</th><th>Falta</th><th>Progresso</th></tr></thead><tbody>${TABS.filter(t => t[0] !== 'resumo').map(([k]) => built[k].map((g, i) => `<tr>${i === 0 ? `<td rowspan="${built[k].length}"><a class="x" href="#missing" data-goto="${k}">${esc(tabTitle(k))}</a></td>` : ''}<td>${esc(g.title)}</td><td class="num">${g.info ? g.items.length + ' prontas' : g.items.length + ' de ' + g.total}</td><td>${g.info ? '' : bar(g.total - g.items.length, g.total)}</td></tr>`).join('')).join('')}</tbody></table></div>`;
-      const near = [];
-      for (const [k] of TABS) if (k !== 'resumo') for (const g of built[k]) if (!g.info) for (const it of g.items) if (it.pct !== null && it.pct >= 0.9 && it.pct < 1) near.push({ k, g, it });
-      near.sort((a, b) => b.it.pct - a.it.pct);
-      if (near.length) body = `<h3 class="mh">Mais perto de sair (${near.length})</h3><div class="miss-list">${near.slice(0, 40).map(({ k, g, it }) => `<article class="miss-item"><h4>${link(it.id)} <span class="key">${esc(tabTitle(k))} · ${esc(g.title)}</span></h4><div>${it.how}</div></article>`).join('')}</div><h3 class="mh">Tudo</h3>` + body;
-    } else {
-      body = built[tab].map(g => `<details class="mgroup"${g.items.length && g.items.length <= 25 ? ' open' : ''}><summary><b>${esc(g.title)}</b> ${g.info ? `<span class="num">${g.items.length} prontas</span>` : `<span class="num">faltam ${g.items.length} de ${g.total}</span> ${bar(g.total - g.items.length, g.total)}`}</summary>${g.note ? `<p class="hint">${g.note}</p>` : ''}<div class="miss-list">${g.items.length ? renderItems(g) : '<p class="hint">Completo.</p>'}</div></details>`).join('');
+    if (tab === 'resumo') body = closestHTML(built) + everythingHTML(built);
+    else {
+      body = built[tab].map(g => `<details class="mgroup"${g.items.length && g.items.length <= 25 ? ' open' : ''}><summary><b>${esc(g.title)}</b> ${g.info ? `<span class="num">${g.items.length} ready</span>` : `<span class="num">${g.items.length} of ${g.total} missing</span> ${bar(g.total - g.items.length, g.total)}`}</summary>${g.note ? `<p class="hint">${g.note}</p>` : ''}<div class="miss-list">${g.items.length ? renderItems(g) : '<p class="hint">Complete.</p>'}</div></details>`).join('');
     }
-    return `<div class="crumbs"><span class="tag">Ferramenta</span></div><h2>O que falta</h2>
-      <p class="hint">${saveInfo.live ? 'Do seu jogo ao vivo' : 'Do seu save'} (GL ${saveInfo.gl}). Cada item mostra como pegar e o seu progresso; os mais perto aparecem primeiro. Nomes como na interface do jogo.</p>
+    return `<div class="crumbs"><span class="tag">Tool</span></div><h2>What's missing</h2>
+      <p class="hint">${saveInfo.live ? 'From your live game' : 'From your save'} (GL ${saveInfo.gl}). Each item shows how to get it and your progress; the closest come first. Names as the game shows them.</p>
       <div class="tabs" role="tablist">${tabs}</div>
-      <label class="fld miss-filter"><span>Filtrar</span><input class="ni" id="missq" type="search" placeholder="ex.: Farm #21, Golden rose, zona"></label>
+      <label class="fld miss-filter"><span>Filter</span><input class="ni" id="missq" type="search" placeholder="e.g. Farm #21, Golden rose, zone"></label>
       ${body}`;
   };
 

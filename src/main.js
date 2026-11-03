@@ -9,6 +9,7 @@
   // aba do jogo em 2º plano enquanto a janela do Codex está na frente) e para o dock no topo.
   // ════════════════════════════════════════════════════════════════════════
 /*__CORE__*/
+/*__DOCKSORT__*/
 
   const VERSION = '__VERSION__';
   const DATA_HASH = '__DATAHASH__';
@@ -22,7 +23,7 @@
 <div class="wrap"><div class="app" id="app">
   <aside class="rail">
     <div class="brand">
-      <h1><button id="homeBtn" type="button" title="Início">Gooboo Codex</button></h1>
+      <h1><button id="homeBtn" type="button" title="Início">Gooboo Codex</button> <span class="ver" title="Versão do script instalada">v${VERSION}</span></h1>
       <span class="tools">
         <button type="button" class="ib" id="backBtn" title="Voltar" disabled>←</button>
         <button type="button" class="ib" id="refreshBtn" title="Atualizar com os valores atuais do jogo">↻</button>
@@ -119,6 +120,8 @@
       host.id = 'gooboo-codex';
       host.style.cssText = 'position:fixed;right:0;z-index:99990;box-shadow:-8px 0 30px rgba(0,0,0,.35);display:none';
       document.body.appendChild(host);
+      // com um v-dialog do jogo aberto, o Vuetify sobe pelos parentNode a partir do alvo; o painel fica fora do #app
+      for (const ev of ['wheel', 'touchmove', 'keydown']) host.addEventListener(ev, e => e.stopPropagation(), { passive: true });
       shadow = host.attachShadow({ mode: 'open' });
       const st = document.createElement('style'); st.textContent = CSS_SHADOW; shadow.appendChild(st);
       const root = document.createElement('div'); root.className = 'root'; shadow.appendChild(root);
@@ -199,6 +202,7 @@
     chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'ga-chip';
+    chip.dataset.gaOrder = '100'; // Codex sempre o último do dock
     chip.textContent = '📖 Codex';
     chip.title = 'Gooboo Codex — clique: painel lateral · Shift+clique ou botão do meio: janela separada';
     chip.style.cssText = 'padding:3px 11px;border-radius:16px;font-size:12px;cursor:pointer;color:#fff;border:1px solid rgba(127,214,196,.7);background:rgba(29,111,98,.45);white-space:nowrap';
