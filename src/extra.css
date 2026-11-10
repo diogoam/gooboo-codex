@@ -26,3 +26,13 @@ details.back ul.men{columns:1;margin-bottom:8px}
 .tudo details summary{cursor:pointer}
 .tudo details ul{margin:6px 0 2px 16px;padding:0;font-size:13px}
 .tudo details li{margin:2px 0}
+/* 1.4: versão nova, faixa minimizada, guia do evento no topo, página de guias */
+.brand h1 .ver.new a{color:var(--good);font-weight:700}
+.mini{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:10px;background:var(--panel);border-left:1px solid var(--line)}
+.mini span{writing-mode:vertical-rl;font:700 13px var(--f-body);color:var(--muted);letter-spacing:.04em}
+.banner.guide{margin:12px 0 0;border-left:3px solid var(--accent)}
+.home .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.home .chips a{padding:8px 14px;border-radius:999px;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:700}
+.guides h3{font:800 20px var(--f-display);margin:20px 0 6px}
+.guides .tile{text-decoration:none;color:inherit}
+.guides .tile span{font:13px var(--f-body);white-space:normal}

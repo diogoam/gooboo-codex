@@ -80,7 +80,7 @@ const header = `// ==UserScript==
 `;
 const out = header + '\n' + rd('src/main.js')
   .replace('/*__CORE__*/', () => rd('src/core.js').replace(/\n$/, ''))
-  .replace('/*__DOCKSORT__*/', '') // ordenador do dock: pronto em src/docksort.js, esperando o ok do jogador
+  .replace('/*__DOCKSORT__*/', () => rd('src/docksort.js').replace(/\n$/, '')) // ordenador do dock (ok do jogador em 10/11)
   .replace('/*__APP__*/', () => indent(app))
   .replace('__VERSION__', VERSION)
   .replace('__DATAHASH__', data.hash)

@@ -50,7 +50,16 @@ const INDEX = DATA.map(e => {
   const secs = e.s.map(s => ({ h: s.h, t: plain(s.b.join(' · ')) }));
   return { e, n: norm(e.n), k: norm(e.k), c: norm(e.c), d: norm(plain(e.d)), dRaw: plain(e.d), secs, t: secs.map(x => norm(x.t)) };
 });
-const TOOLS = [{ id: 'missing', n: "What's missing (O que falta)", c: 'Tool', words: "what's missing o que falta closest to getting mais perto de sair everything tudo notes unlocks upgrades cards relics questlines achievements" }];
+// guia do evento de cada verbete: pelo id (cinders…, bloom…, event_summerFestivalToken) ou por ser citado por um guia só
+const EVENT_KEYS = DATA.filter(x => x.c === 'Event').map(x => x.k);
+const guideFor = e => {
+  if (!e || e.c === 'Event') return null;
+  const k = String(e.k).replace(/^event_/, '');
+  let g = EVENT_KEYS.find(ek => new RegExp('^' + ek + '(?=[A-Z_]|$)').test(k));
+  if (!g) { const from = [...(BACK[e.id] || [])].filter(id => id.startsWith('event:')); if (from.length === 1) g = from[0].slice(6); }
+  return g ? BY['event:' + g] : null;
+};
+const TOOLS = [{ id: 'guides', n: 'Guides', c: 'Tool', words: 'guides guias events eventos beginner iniciante concepts conceitos' }, { id: 'missing', n: "What's missing (O que falta)", c: 'Tool', words: "what's missing o que falta closest to getting mais perto de sair everything tudo notes unlocks upgrades cards relics questlines achievements" }];
 const snip = (raw, nq) => {
   const i = norm(raw).indexOf(nq); if (i < 0) return '';
   const a = Math.max(0, i - 40), b = Math.min(raw.length, i + nq.length + 60);
@@ -75,6 +84,8 @@ function search(q){
     if (hit) lastHits.set(r.e.id, hit);
     scored.push([sc, r.e]);
   }
+  // o guia do evento vai primeiro quando a busca é o nome do evento (ou um termo que só aparece nele)
+  for (const x of scored) if (x[1].c === 'Event' && (norm(x[1].n).includes(nq) || nq.includes(norm(x[1].n)) || norm(x[1].k).includes(nq))) x[0] = 200;
   if (!activeCat) for (const t of TOOLS) if (norm(t.n + ' ' + t.words).includes(nq)) scored.push([70, t]);
   return scored.sort((a,b) => b[0]-a[0] || a[1].n.localeCompare(b[1].n, undefined, {numeric: true})).map(x => x[1]);
 }
@@ -105,6 +116,7 @@ function renderEntry(e){
     <div class="crumbs"><span class="tag">${esc(e.c)}</span>${FEAT_NAMES[e.f] ? `<a class="tag f" style="background:${fc}" href="#feat~${esc(e.f)}">${esc(FEAT_NAMES[e.f])}</a>` : ''}</div>
     <h2>${sw ? `<span class="swatch" style="background:${sw}" title="cor no jogo: ${esc(e.col)}"></span>` : ''}${esc(e.n)}</h2>
     <div class="key">internal id: <button type="button" id="copyKey" title="Copy">${esc(e.k)}</button>${e.nui ? ' · descriptive name (the game shows no name for this)' : ''}</div>
+    ${(g => g ? `<div class="banner guide">📘 Part of the <b>${esc(g.n)}</b> event. <a class="x" href="#${tok(g.id)}">Read the event guide</a>: what it is, what you'll see, the goal, strategy, bottlenecks and the shop.</div>` : '')(guideFor(e))}
     ${sectionsHTML(e)}
     ${appearsHTML(e, back)}`;
   $('copyKey').onclick = ev => { navigator.clipboard?.writeText(e.k).then(() => ev.target.textContent = 'copied ✓', () => {}); };
@@ -160,6 +172,7 @@ function renderHome(){
     <h2>Gooboo Codex</h2>
     <p>Todos os termos do jogo com o nome que aparece na interface: o que é, de onde vem, como destrava e o que afeta o valor. Clique em qualquer nome sublinhado para navegar.</p>
     ${LAB.ok ? `<div class="banner">${info && info.live ? `Lendo <b>o seu jogo ao vivo</b> (GL ${info.gl}). Toda moeda, estatística e upgrade tem uma calculadora; as features têm o planejador de run. O Codex só lê o jogo, nunca altera nada.` : 'Jogo não encontrado.'}</div>` : ''}
+    <div class="chips"><a href="#guides" title="Beginner guides: every event and the core concepts">📘 Guides</a><a href="#guides" data-events="1" title="Event guides: Cinders, Bloom, Weather chaos, Summer festival, Night hunt, Snowdown, Merchant, Casino, Bank">🎪 Events</a></div>
     <div class="start" style="margin-top:14px"><a href="#missing">O que falta em cada feature (notes, unlocks, upgrades, cards…)</a></div>
     <h3 style="font:800 20px var(--f-display);margin:20px 0 6px">Planejar a próxima run</h3>
     <div class="start">${['mining','village','horde','farm','gallery'].map(f => `<a href="#feat~${f}">${esc(FEAT_NAMES[f] || f)}</a>`).join('')}</div>
@@ -167,6 +180,17 @@ function renderHome(){
     <div class="start">${starts.map(id => `<a href="#${tok(id)}">${esc(BY[id].n)}</a>`).join('')}</div>
     <div class="grid">${cats.map(c => `<button type="button" class="tile" data-c="${esc(c)}"><b>${esc(c)}</b><span>${counts[c]} verbetes</span></button>`).join('')}</div></div>`;
   pageEl.querySelectorAll('.tile').forEach(b => b.onclick = () => { activeCat = b.dataset.c; renderCats(); renderList(); qEl.focus(); appEl.classList.remove('reading'); });
+  $('toList').onclick = () => appEl.classList.remove('reading');
+}
+function renderGuides(){
+  const first = e => { const s = e.s.find(x => /^(O que é|What it is)/.test(x.h)) || e.s[0]; return s ? plain(s.b[0] || '').slice(0, 140) : ''; };
+  const tile = e => `<a class="tile" href="#${tok(e.id)}"><b>${esc(e.n)}</b><span>${esc(first(e))}${first(e).length >= 140 ? '…' : ''}</span></a>`;
+  const evs = DATA.filter(e => e.c === 'Event'), cons = DATA.filter(e => e.c === 'Conceito').sort((a, b) => a.n.localeCompare(b.n));
+  pageEl.innerHTML = `<div class="guides"><button type="button" class="back-btn" id="toList">← Índice</button>
+    <div class="crumbs"><span class="tag">Tool</span></div><h2>Guides</h2>
+    <p class="hint">Start here. Event guides explain each event from zero (what it is, what you'll see, goal, strategy, bottlenecks, shop, reset); concept guides explain the systems every feature shares. Names as the game shows them.</p>
+    <h3 id="g-events">🎪 Events</h3><div class="grid">${evs.map(tile).join('')}</div>
+    <h3>🧭 Concepts</h3><div class="grid">${cons.map(tile).join('')}</div></div>`;
   $('toList').onclick = () => appEl.classList.remove('reading');
 }
 let missTab = lsGet('miss') || 'resumo';
@@ -194,6 +218,7 @@ function show(id, push = true){
   lsSet('route', id || '');
   $('backBtn').disabled = !hist.length;
   if (id === 'missing') { currentId = null; renderMissing(); appEl.classList.add('reading'); mainEl.scrollTop = 0; return; }
+  if (id === 'guides') { currentId = null; renderGuides(); appEl.classList.add('reading'); mainEl.scrollTop = 0; return; }
   const e = BY[id];
   currentId = e ? id : null;
   if (e) { renderEntry(e); appEl.classList.add('reading'); } else renderHome();
@@ -208,6 +233,7 @@ appEl.addEventListener('click', ev => {
   ev.preventDefault();
   const h = a.getAttribute('href').slice(1);
   if (h) go(untok(h));
+  if (a.dataset.events) $('g-events')?.scrollIntoView();
 });
 $('homeBtn').onclick = () => show(null);
 $('backBtn').onclick = back;
@@ -235,6 +261,7 @@ function refresh(force){
   const y = mainEl.scrollTop;
   const openDetails = [...pageEl.querySelectorAll('details')].map(d => d.open);
   if (currentRoute === 'missing') renderMissing();
+  else if (currentRoute === 'guides') renderGuides();
   else if (currentId) renderEntry(BY[currentId]);
   else renderHome();
   pageEl.querySelectorAll('details').forEach((d, i) => { if (openDetails[i] !== undefined) d.open = openDetails[i]; });
@@ -246,6 +273,6 @@ LAB.init(env.GBF, env.META);
 activeCat = lsGet('cat') || null; if (activeCat && !cats.includes(activeCat)) activeCat = null;
 renderCats(); renderList(); refreshStatus();
 const startRoute = env.route !== undefined ? env.route : (lsGet('route') || null);
-show(startRoute && (startRoute === 'missing' || BY[startRoute]) ? startRoute : null, false);
+show(startRoute && (startRoute === 'missing' || startRoute === 'guides' || BY[startRoute]) ? startRoute : null, false);
 return { show, refresh, back, get route(){ return currentRoute; } };
 }

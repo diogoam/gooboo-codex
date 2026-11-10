@@ -23,11 +23,11 @@
 <div class="wrap"><div class="app" id="app">
   <aside class="rail">
     <div class="brand">
-      <h1><button id="homeBtn" type="button" title="Início">Gooboo Codex</button> <span class="ver" title="Versão do script instalada">v${VERSION}</span></h1>
+      <h1><button id="homeBtn" type="button" title="Início">Gooboo Codex</button> <span class="ver" id="verTag" title="Versão do script instalada">v${VERSION}</span></h1>
       <span class="tools">
         <button type="button" class="ib" id="backBtn" title="Voltar" disabled>←</button>
         <button type="button" class="ib" id="refreshBtn" title="Atualizar com os valores atuais do jogo">↻</button>
-        ${popup ? '' : '<button type="button" class="ib" id="popBtn" title="Abrir em janela separada">⧉</button><button type="button" class="ib" id="closeBtn" title="Fechar (Esc)">✕</button>'}
+        ${popup ? '' : '<button type="button" class="ib" id="minBtn" title="Minimizar: o painel vira uma faixa estreita na borda (clique em ▢ para expandir)">−</button><button type="button" class="ib" id="popBtn" title="Abrir em janela separada">⧉</button><button type="button" class="ib" id="closeBtn" title="Fechar (Esc)">✕</button>'}
       </span>
     </div>
     <div class="live"><span class="st-dot" id="liveDot"></span><span id="liveTxt">…</span></div>
@@ -95,20 +95,46 @@
     doc.head.appendChild(l);
   }
 
+  // ─── aviso de versão nova (lê só o cabeçalho do arquivo no GitHub; nunca atualiza sozinho) ─
+  const DIST_URL = 'https://raw.githubusercontent.com/diogoam/gooboo-codex/main/dist/gooboo-codex.user.js';
+  const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+  let remoteVer = null;
+  function showNewVersion(root) {
+    const el = root && root.getElementById && root.getElementById('verTag'); if (!el) return;
+    if (remoteVer && newer(remoteVer, VERSION)) {
+      el.innerHTML = `v${VERSION} · <a href="${DIST_URL}" target="_blank" rel="noopener" title="Abre o arquivo da versão nova; o Tampermonkey oferece a instalação">v${remoteVer} disponível</a>`;
+      el.classList.add('new');
+    } else { el.textContent = 'v' + VERSION; el.classList.remove('new'); }
+  }
+  async function checkVersion() {
+    try {
+      const r = await fetch(DIST_URL + '?t=' + Math.floor(Date.now() / 3.6e6), { headers: { Range: 'bytes=0-1023' }, cache: 'no-cache' });
+      if (!r.ok && r.status !== 206) return;
+      const m = (await r.text()).match(/@version\s+([\d.]+)/); if (!m) return;
+      remoteVer = m[1];
+      showNewVersion(shadow); if (popWin && !popWin.closed) showNewVersion(popWin.document);
+    } catch (e) { /* sem rede: fica quieto */ }
+  }
+
   // ─── painel lateral dentro do jogo ────────────────────────────────────────
   const cfg = Object.assign({ open: false, width: 900 }, (() => { try { return JSON.parse(localStorage.getItem('gcodex_cfg')) || {}; } catch { return {}; } })());
   const saveCfg = () => { try { localStorage.setItem('gcodex_cfg', JSON.stringify(cfg)); } catch {} };
   let host = null, shadow = null, panelApp = null, popWin = null, popApp = null, chip = null;
 
+  // O painel fica preso à borda direita, sempre abaixo da barra do jogo (não arrasta, só muda a largura),
+  // então nunca some atrás da .v-app-bar. Minimizado = faixa estreita com ▢ para expandir.
   function placeHost() {
     if (!host) return;
     const bar = document.querySelector('.v-app-bar');
     const top = bar ? Math.max(0, Math.round(bar.getBoundingClientRect().bottom)) : 0;
     host.style.top = top + 'px';
     host.style.height = `calc(100vh - ${top}px)`;
-    host.style.width = Math.min(cfg.width, window.innerWidth - 40) + 'px';
+    host.style.width = cfg.min ? '38px' : Math.max(360, Math.min(cfg.width, window.innerWidth - 40)) + 'px';
     host.setAttribute('data-theme', gameDark() ? 'dark' : 'light');
+    const mini = shadow && shadow.querySelector('.mini'), root = shadow && shadow.querySelector('.root'), grip = shadow && shadow.querySelector('.grip');
+    if (mini) { mini.style.display = cfg.min ? '' : 'none'; root.style.display = cfg.min ? 'none' : ''; grip.style.display = cfg.min ? 'none' : ''; }
   }
+  function setMin(v) { cfg.min = !!v; saveCfg(); placeHost(); updateChip(); }
 
   function message(root, html) {
     root.innerHTML = `<div class="wrap"><div class="msgbox">${html}</div></div>`;
@@ -126,6 +152,10 @@
       const st = document.createElement('style'); st.textContent = CSS_SHADOW; shadow.appendChild(st);
       const root = document.createElement('div'); root.className = 'root'; shadow.appendChild(root);
       const grip = document.createElement('div'); grip.className = 'grip'; grip.title = 'Arraste para mudar a largura'; shadow.appendChild(grip);
+      const mini = document.createElement('div'); mini.className = 'mini'; mini.style.display = 'none';
+      mini.innerHTML = '<button type="button" class="ib" title="Expandir o Codex">▢</button><span>📖 Codex</span>';
+      mini.querySelector('button').onclick = () => setMin(false);
+      shadow.appendChild(mini);
       grip.addEventListener('pointerdown', ev => {
         ev.preventDefault(); grip.setPointerCapture(ev.pointerId);
         const mv = e => { cfg.width = Math.max(360, Math.min(window.innerWidth - 40, window.innerWidth - e.clientX)); placeHost(); };
@@ -148,6 +178,8 @@
       if (!GB) { message(root, 'O jogo ainda não terminou de carregar. Tente de novo em alguns segundos.'); return; }
       root.innerHTML = SHELL(false);
       // ShadowRoot tem getElementById, querySelector e activeElement — o app usa só isso
+      showNewVersion(shadow);
+      const mb = shadow.getElementById('minBtn'); if (mb) mb.onclick = () => setMin(true);
       panelApp = mountCodex(shadow, { DATA: d.glossary, GBF: d.gbf, META: d.meta, COLORS: d.colors, GB, isPopup: false, onPopout: route => { openPopup(route); closePanel(); }, onClose: closePanel });
     } catch (e) {
       console.error('[Codex]', e);
@@ -174,6 +206,7 @@
       const GB = liveGB();
       if (!GB) { doc.body.innerHTML = '<div class="wrap"><div class="msgbox">O jogo ainda não terminou de carregar.</div></div>'; return; }
       doc.body.innerHTML = SHELL(true);
+      showNewVersion(doc);
       popApp = mountCodex(doc, { DATA: d.glossary, GBF: d.gbf, META: d.meta, COLORS: d.colors, GB, isPopup: true, route });
       w.addEventListener('beforeunload', () => { popApp = null; });
     } catch (e) {
@@ -206,11 +239,12 @@
     chip.textContent = '📖 Codex';
     chip.title = 'Gooboo Codex — clique: painel lateral · Shift+clique ou botão do meio: janela separada';
     chip.style.cssText = 'padding:3px 11px;border-radius:16px;font-size:12px;cursor:pointer;color:#fff;border:1px solid rgba(127,214,196,.7);background:rgba(29,111,98,.45);white-space:nowrap';
-    chip.addEventListener('click', ev => { if (ev.shiftKey) { openPopup(); return; } (cfg.open && host && host.style.display !== 'none') ? closePanel() : openPanel(); });
+    chip.addEventListener('click', ev => { if (ev.shiftKey) { openPopup(); return; } if (cfg.open && host && host.style.display !== 'none') { if (cfg.min) setMin(false); else closePanel(); } else openPanel(); });
     chip.addEventListener('auxclick', ev => { if (ev.button === 1) { ev.preventDefault(); openPopup(); } });
     GA.dock(chip);
     GA.modules.codex = { version: VERSION, open: openPanel, close: closePanel, popup: openPopup, loadData };
     if (cfg.open) openPanel();
+    checkVersion(); GA.every(6 * 3600 * 1000, checkVersion); // a cada 6 h, pelo timer do Worker
   }
   init();
 })();
