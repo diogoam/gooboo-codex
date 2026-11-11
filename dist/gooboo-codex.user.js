@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gooboo Codex
 // @namespace    gooboo-assist
-// @version      1.6.0
+// @version      1.7.0
 // @description  Fan wiki clicável do Gooboo dentro do jogo: todo termo com o nome da interface, de onde vem, como destrava, calculadoras ligadas ao seu jogo ao vivo, planejador de run e "o que falta" por feature. Só lê o jogo.
 // @author       diogoam
 // @icon         https://tendsty.github.io/gooboo/favicon-32x32.png
@@ -260,7 +260,7 @@
     watch();
   })();
 
-  const VERSION = '1.6.0';
+  const VERSION = '1.7.0';
   const DATA_HASH = 'ec8f669adc86';
   const DATA_URLS = [
     'https://raw.githubusercontent.com/diogoam/gooboo-codex/main/data/codex-data.json',
@@ -959,6 +959,17 @@
         gs.push(group('tower', 'Torres: próximas recompensas', twItems, tw.length));
         const cl = Object.entries(S.horde.fighterClass);
         gs.push(group('class', 'Quests de classe restantes (battle pass)', cl.filter(([, c]) => !c.unlock || S.unlock[c.unlock]?.see).map(([k, c]) => { const left = ['stat', 'zone', 'level', 'boss'].map(q => [q, (c.quests[q]?.length || 0) - (c.questsCompleted[q] || 0)]); const tot = left.reduce((a, [q, n]) => a + n * (q === 'boss' ? 2 : 1), 0); const all = ['stat', 'zone', 'level', 'boss'].reduce((a, q) => a + (c.quests[q]?.length || 0) * (q === 'boss' ? 2 : 1), 0); return tot > 0 ? item('class:' + k, `Faltam ${left.filter(([, n]) => n > 0).map(([q, n]) => `${n} ${q}`).join(', ')} (= ${tot} níveis de battle pass).`, ratio(all - tot, all)) : null; }).filter(Boolean), cl.length, `Battle pass atual: ${tryv(() => G['horde/battlePassCurrentLevel'], 0)}.`));
+        // Classes: areas, zones and final bosses
+        const ar = Object.entries(S.horde.area || {});
+        gs.push(group('area', 'Horde Classes: areas, zones and final bosses', ar.map(([k, a]) => {
+          const all = Object.values(a.zones || {}); const zs = all.filter(z => z.type === 'regular' || z.type === 'boss'); const open = zs.filter(z => z.unlocked).length; const extra = all.filter(z => z.type !== 'regular' && z.type !== 'boss' && !z.unlocked).length; const bz = zs.find(z => z.reward); const beaten = bz ? !!S.unlock[bz.reward]?.use : false;
+          if (a.unlock && !S.unlock[a.unlock]?.see) return item('area:' + k, `Locked: beat the final boss of the previous area.`, 0);
+          if (open >= zs.length && beaten && !extra) return null;
+          return item('area:' + k, `${open}/${zs.length} zones open${extra ? ` (+${extra} endless/digsite zones opened by monster teeth)` : ''}.${bz ? (beaten ? ' Final boss beaten.' : ` Final boss not beaten yet (it unlocks ${link('unl:' + bz.reward)} and drops a trinket).`) : ''}<br>${bar(open, zs.length)}`, ratio(open, zs.length) * (beaten ? 1 : 0.95));
+        }).filter(Boolean), ar.length));
+        // Equipment: sigils you will meet above your record zone
+        const sg = Object.entries(S.horde.sigil || {}).filter(([, v]) => v.minZone !== null && isFinite(v.minZone ?? 0));
+        gs.push(group('sigil', 'Sigils you have not reached yet (Equipment)', sg.filter(([, v]) => (v.minZone ?? 0) > zt).map(([k, v]) => item('sigil:' + k, `Enemies start rolling it at zone ${v.minZone}.<br>${bar(zt, v.minZone)} record zone`, ratio(zt, v.minZone))), sg.length, 'The game does not record which sigils you have seen; this lists the ones above your record zone.'));
         const tr = Object.entries(S.horde.trinket);
         gs.push(group('trinket', 'Trinkets nunca obtidos', tr.filter(([, t]) => !(t.amount > 0)).map(([k]) => item('trinket:' + k, 'Cai de bosses na Horde (Classes).')), tr.length));
         return gs;
@@ -1015,11 +1026,52 @@
           qs.push(item('quest:' + g + '.' + q, locked ? `Bloqueada: exige ${link('unl:' + (qu.unlock || gen.unlock))}.` : `Estágio ${qu.stage + 1}/${qu.stages.length}${raw?.isChallenge ? ' ⚔ (dentro de uma run)' : ''}:<br>${tasks.join('<br>')}`, locked ? 0 : ratio(qu.stage, qu.stages.length)));
         }
         gs.push(group('quest', 'Questlines incompletas', qs, qTot));
+        // Museum glyphs
+        if (S.unlock.relicMuseum?.see) {
+          const gst = tryv(() => G['relic/glyphStats'](), {}) || {};
+          const gl = Object.entries(S.relic.glyph || {});
+          gs.push(group('glyph', 'Glyphs below their cap', gl.filter(([k, g]) => !gst[k] || g.progress < gst[k].max).map(([k, g]) => { const st2 = gst[k]; const lvl = Math.floor(g.progress); return item('glyph:' + k, st2 ? `Level ${lvl}, cap ${st2.max} from the relics on your pedestals (speed ${fmt(st2.speed)}).<br>${bar(g.progress, st2.max)}` : `Level ${lvl}. No relic with this glyph is on a pedestal: ${secText('glyph:' + k, 'How to get it') || 'see the glyph page'}.`, st2 ? ratio(g.progress, st2.max) : 0); }), gl.length, 'A glyph levels up over time up to the highest value one pedestal gives it.'));
+        }
+        // Treasure: effects not on any of your treasures
+        if (S.unlock.treasureFeature?.see) {
+          const have = new Set(); (S.treasure.items || []).forEach(it => (it?.effect || []).forEach(n => n && have.add(n)));
+          const ef = Object.entries(S.treasure.effect || {});
+          gs.push(group('treasure', 'Treasure effects you do not have', ef.filter(([k]) => !have.has(k)).map(([k, t]) => { const lock = t.unlock && !S.unlock[t.unlock]?.see; return item('tre:' + k, `${t.type === 'prestige' ? 'Only on Prestigious treasures' : 'On Regular, Dual and Prestigious treasures'}, tier ${t.minTier}+.${lock ? ` Needs ${link('unl:' + t.unlock)} first.` : ''}`, lock ? 0 : 0.5); }), ef.length, `Slots in use: ${(S.treasure.items || []).filter(Boolean).length} of ${(S.treasure.items || []).length}.`));
+        }
+        // Cryo lab: next level of each subfeature
+        if (S.unlock.cryolabFeature?.see) {
+          const cr = [];
+          for (const [f, c] of Object.entries(S.cryolab)) (c.data || []).forEach((d, sub) => { const need = tryv(() => G['cryolab/expNeeded'](c.level[sub]), 0); const eg = tryv(() => G['cryolab/expGain'](f, sub), 0); const days = eg ? Math.max(0, need - c.exp[sub]) / eg : null; cr.push(item('feat:' + f, `${esc(GB.en?.subfeature?.[f]?.[sub] || nm('feat:' + f))}: level ${c.level[sub]} → ${c.level[sub] + 1}${days !== null ? ` in ${time(days * 86400)} frozen` : ''}.<br>${bar(c.exp[sub], need)}`, ratio(c.exp[sub], need))); });
+          gs.push(group('cryo', 'Cryo lab: next level of each subfeature', cr, cr.length, `Levels never end; the ${link('concept:cryolab')} page ranks them by Global level per day frozen.`));
+        }
+        // Themes
+        const th = Object.entries(S.system.themes || {});
+        gs.push(group('theme', 'Themes you do not own', th.filter(([, t]) => !t.owned).map(([k, t]) => { const n = GB.en?.theme?.[k]?.name || GB.en?.theme?.[k] || k; return item('theme:' + k, `${esc(typeof n === 'string' ? n : k)}: ${t.price !== null ? `${fmt(t.price)} ${curLink('gem_amethyst')}${(S.currency.gem_amethyst?.value ?? 0) >= t.price ? ' ✓' : ''} in Settings → Themes` : 'from an event shop (tokens)'}.`, t.price !== null ? ratio(S.currency.gem_amethyst?.value ?? 0, t.price) : 0); }), th.length));
         return gs.concat(metaGroups(null, (f) => !MAIN.includes(f), (f) => !MAIN.includes(f), (f) => !MAIN.includes(f)));
       },
     };
+    // Goals: every achievement level and questline stage in one list, closest first
+    builders.goals = () => {
+      const out = [];
+      for (const [k, a] of Object.entries(S.achievement)) {
+        if (a.cap !== null && a.level >= a.cap) continue;
+        const v = tryv(() => a.value(), 0), need = tryv(() => a.milestones(a.level), 0); const rel = a.relic?.[a.level];
+        out.push(item('ach:' + k, `<span class="tag">${esc(nm('feat:' + a.feature))}</span> Level ${a.level} → ${a.level + 1}${rel ? `, reward: relic ${link('relic:' + rel)}` : ''}.<br>${bar(v, need)}`, ratio(v, need)));
+      }
+      const qs = [];
+      for (const [g, gen] of Object.entries(S.general)) for (const [q, qu] of Object.entries(gen.quests)) {
+        if (qu.stage >= qu.stages.length) continue;
+        if ((gen.unlock && !S.unlock[gen.unlock]?.see) || (qu.unlock && !S.unlock[qu.unlock]?.see)) continue;
+        const raw = DATA_GBF[g]?.quests?.[q]?.stages?.[qu.stage];
+        const rs = qu.stages[qu.stage].tasks.map((t, i) => ({ r: evalTask(t), t, txt: raw?.tasks?.[i] || t.name }));
+        const part = rs.reduce((a, x) => a + (x.r.ok ? 1 : (typeof x.r.cur === 'number' && typeof x.t.value === 'number' && x.t.value > 0 && /^>/.test(x.t.operator || '') ? Math.min(0.99, x.r.cur / x.t.value) : 0)), 0) / Math.max(1, rs.length);
+        qs.push(item('quest:' + g + '.' + q, `<span class="tag">${esc((raw?.features || []).map(f => nm('feat:' + f)).join(', ') || 'General')}</span> Stage ${qu.stage + 1}/${qu.stages.length}${raw?.isChallenge ? ' <b>⚔ needs a dedicated run</b> (all tasks inside one run)' : ''}:<br>${rs.map(x => `${x.r.ok ? '✓' : '○'} ${esc(x.txt)} <span class="key">(now: ${typeof x.r.cur === 'boolean' ? (x.r.cur ? 'yes' : 'no') : fmt(x.r.cur)})</span>`).join('<br>')}`, part));
+      }
+      return [group('goal-ach', 'Achievements: next level (all features)', out, Object.keys(S.achievement).length, 'Each achievement level also adds +1% gem generation. Most come for free while playing.'),
+        group('goal-quest', 'Questlines: current stage (all generals)', qs, qs.length, 'Stages marked ⚔ need a run planned for them; the others fill up on the way.')];
+    };
     const str2 = (c) => !!BY['cur:gallery_' + c] && !BY['cur:gallery_' + c].nui;
-    const TABS = [['resumo', 'Summary'], ['mining', null], ['village', null], ['horde', null], ['farm', null], ['gallery', null], ['cards', null], ['meta', 'Other']];
+    const TABS = [['resumo', 'Summary'], ['mining', null], ['village', null], ['horde', null], ['farm', null], ['gallery', null], ['cards', null], ['goals', '🎯 Goals'], ['meta', 'Other']];
     const tabTitle = (k) => k === 'cards' ? nm('feat:card') : (TABS.find(t => t[0] === k)[1] || nm('feat:' + k));
     const buildTab = (k) => {
       const gs = builders[k]();
@@ -1106,7 +1158,7 @@
     };
     const everythingHTML = (built) => {
       const rows = [];
-      for (const [k] of TABS) if (k !== 'resumo') for (const g of built[k]) {
+      for (const [k] of TABS) if (k !== 'resumo' && k !== 'goals') for (const g of built[k]) {
         const have = g.total - g.items.length;
         rows.push({ k, g, done: !g.info && g.items.length === 0, r: g.info ? 2 : (g.total > 0 ? have / g.total : 0) });
       }
