@@ -348,6 +348,39 @@ const LAB = (() => {
       ${advice([['Onde intervir', 'Exp/dia depende só da parte do GL daquela feature. Moeda/dia depende do seu melhor prestige: bater recorde de prestige aumenta a renda passiva para sempre. Congele a feature que você menos precisa jogar e cujo nível de cryolab está mais perto de subir.']])}</section>`;
   };
 
+  // Cryo lab page: every subfeature, live (read-only)
+  const CRYO_E = { 'mining.0': 1.45, 'mining.1': 1.1, 'village.0': 0, 'village.1': 0.2, 'horde.0': 1.1, 'horde.1': 2.47, 'farm.0': 28.5, 'gallery.0': 0.72 }; // GL per ln of the prestige channel (progress model, player's save)
+  F.cryolab = () => {
+    const rows = [];
+    let frozen = 0; for (const c of Object.values(S.cryolab)) if (c.active) frozen++;
+    const slots = mg('cryolabMaxFeatures') ?? 1;
+    for (const [f, c] of Object.entries(S.cryolab)) {
+      if (!c.data) continue;
+      const open = S.system.features[f]?.currentSubfeature ?? 0;
+      c.data.forEach((data, sub) => {
+        const lvl = c.level[sub] ?? 0, exp = c.exp[sub] ?? 0;
+        let need = null, eg = 0; try { need = G['cryolab/expNeeded'](lvl); eg = G['cryolab/expGain'](f, sub); } catch {}
+        const act = mg(`${f}CryolabActive${sub}`) || 0, pas = mg(`${f}CryolabPassive${sub}`) || 0;
+        const pay = Object.entries(data).map(([cur, stat]) => { const rec = S.stat[stat]?.total ?? 0; const k = stat === 'farm_bestPrestige' ? 200 : 1; return { cur, rec, act: rec * act * k, pas: rec * pas * k }; });
+        const days = eg > 0 && need ? Math.max(0, need - exp) / eg : Infinity;
+        const glv = (CRYO_E[f + '.' + sub] ?? 0.1) * Math.log(1.15);
+        const name = (GB.en?.subfeature?.[f]?.[sub]) || BY['feat:' + f]?.n || f;
+        rows.push({ f, sub, name, lvl, exp, need, eg, days, pay, glv, gld: isFinite(days) && days > 0 ? glv / days : 0, active: c.active && open === sub, open: open === sub });
+      });
+    }
+    rows.sort((a, b) => b.gld - a.gld);
+    const best = rows.find(r => r.gld > 0);
+    const curName = k => k === 'farm_exp' ? 'crop exp' : curLink(k);
+    return `<section class="lab"><h3>Your Cryo lab</h3>
+      <div class="kpis"><div><small>Frozen slots</small><b>${frozen} / ${fmt(slots)}</b></div>${best ? `<div><small>Best freeze for Global level</small><b>${link('feat:' + best.f, best.name)}</b><span>level ${best.lvl + 1} in ${time(best.days * 86400)} · ≈ +${fmt(best.glv, 2)} GL</span></div>` : ''}</div>
+      <div class="tbl"><table><thead><tr><th>Subfeature</th><th>Level</th><th>Exp</th><th>Exp/day frozen</th><th>Next level</th><th>≈ GL per level</th><th>GL per day frozen</th><th>Pays per day frozen</th><th>Passive per day</th></tr></thead><tbody>${rows.map(r => `<tr class="${r === best ? 'best' : ''}"><td>${link('feat:' + r.f, r.name)}${r.active ? ' ❄' : ''}${r.open ? '' : ' <span class="key">(not open)</span>'}</td><td class="num">${r.lvl}</td><td class="num">${fmt(r.exp)} / ${fmt(r.need)}</td><td class="num">${r.eg ? fmt(r.eg) : '—'}</td><td class="num">${isFinite(r.days) ? time(r.days * 86400) : '—'}</td><td class="num">${fmt(r.glv, 2)}</td><td class="num">${r.gld ? fmt(r.gld, 3) : '—'}</td><td class="num">${r.pay.map(p => `${fmt(p.act)} ${curName(p.cur)}`).join('<br>')}</td><td class="num">${r.pay.map(p => `${fmt(p.pas)} ${curName(p.cur)}`).join('<br>')}</td></tr>`).join('')}</tbody></table></div>
+      ${advice([
+        ['Reading this', 'Exp only comes while frozen and only to the subfeature that is open in that feature — switch subfeature (at prestige) before freezing if you want that level. "Pays per day frozen" replaces that feature\'s own run while frozen; compare it with what your run makes per day now. Farm pays crop exp that only rebuilds crops up to their record.'],
+        ['GL per level', 'Uses the progress model measured on your save (Crop experience ≈ 28.5 GL per ln, Courage 2.47, green crystals 1.45, souls/yellow ≈ 1.1, cash 0.72, Shares 0.2, Blessing ≈ 0 with the Village GL near its ceiling). It is an estimate of long-term Global level, not an exact value.'],
+        ['The helpers never freeze for you', 'Freezing is your decision (the game\'s button). Freezing Mining also pauses the Stonepiercer.'],
+      ])}</section>`;
+  };
+
   // ---------- run planner ----------
   const STATFEAT = { mining: ['mining_maxDepth0', 'mining_maxDepth1', 'mining_depthDwellerCap0', 'mining_depthDwellerCap1'], horde: ['horde_maxZone'], farm: [], village: [], gallery: [] };
   const nextUpgrades = (f) => {
@@ -427,7 +460,7 @@ const LAB = (() => {
     const special = {
       'cur:gallery_cash': F.cash, 'cur:gallery_beauty': F.cash, 'cur:mining_crystalGreen': () => F.dweller(0), 'cur:mining_crystalYellow': () => F.dweller(1), 'concept:dweller': () => F.dweller(S.system.features.mining.currentSubfeature || 0),
       'cur:village_faith': F.faith, 'cur:village_blessing': F.faith, 'cur:horde_soulCorrupted': F.souls, 'cur:horde_soulEmpowered': F.souls, 'concept:rareloot': F.souls,
-      'concept:battlepass': F.classes, 'upg:horde_education': F.classes, 'upg:horde_university': F.classes, 'concept:gl': F.gl, 'concept:cryolab': F.cryo,
+      'concept:battlepass': F.classes, 'upg:horde_education': F.classes, 'upg:horde_university': F.classes, 'concept:gl': F.gl, 'concept:cryolab': F.cryolab, 'feat:cryolab': F.cryolab,
     };
     if (special[id]) parts.unshift(special[id]());
     if (id.startsWith('prestige:')) { const [f, sb] = e.k.split('.'); const sub = +(sb || 0); parts.push(F.prestige(f, sub)); const more = { mining: () => F.dweller(sub), village: () => sub ? '' : F.faith(), horde: () => sub ? F.classes() : F.souls(), farm: F.crops, gallery: F.cash }[f]; if (more) parts.push(more()); }

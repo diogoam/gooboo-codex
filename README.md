@@ -59,6 +59,7 @@ node glossary.js         # glossary.json (~2.900 verbetes)
 node enrich.js           # moedas/gemas EN-first: How to get it / What it does, seções Prestige
 node fill.js            # lote 2: How to get it / What it does nas outras categorias (EN), stats sem efeito, páginas Prestige
 node guides.js           # guias de evento (EN) e o conceito Tick
+node featguides.js       # lote 3: guias por feature (categoria Guide) e a página do Cryo lab (EN)
 cd ../gooboo-codex && node tools/build.js ../gbx
 ```
 

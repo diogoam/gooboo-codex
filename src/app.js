@@ -14,7 +14,7 @@ const BY = Object.fromEntries(DATA.map(e => [e.id, e]));
 const FEAT_NAMES = {};
 DATA.filter(e => e.c === 'Feature').forEach(e => FEAT_NAMES[e.k] = e.n);
 const FEAT_VAR = {mining:'--mining',village:'--village',horde:'--horde',farm:'--farm',gallery:'--gallery'};
-const CAT_ORDER = ['Conceito','Feature','Prestige','Event','Moeda','Gema','Estatística','Upgrade','Building','Upgrade de prestige','Upgrade premium','Upgrade de shapes','Unlock','Relic','Glyph','Card','Coleção de cards','Card pack','Achievement','Livro','General','Questline','Note','Enhancement','Beacon','Smeltery','Job','Policy','Offering','Receita','Equipamento','Heirloom','Trinket','Sigil','Classe','Área','Torre','Crop','Gene','Farm building','Ideia','Shape','Matéria','Efeito de treasure','Consumível','Upgrade de evento'];
+const CAT_ORDER = ['Guide','Conceito','Feature','Prestige','Event','Moeda','Gema','Estatística','Upgrade','Building','Upgrade de prestige','Upgrade premium','Upgrade de shapes','Unlock','Relic','Glyph','Card','Coleção de cards','Card pack','Achievement','Livro','General','Questline','Note','Enhancement','Beacon','Smeltery','Job','Policy','Offering','Receita','Equipamento','Heirloom','Trinket','Sigil','Classe','Área','Torre','Crop','Gene','Farm building','Ideia','Shape','Matéria','Efeito de treasure','Consumível','Upgrade de evento'];
 const cats = [...new Set(DATA.map(e => e.c))].sort((a,b) => (CAT_ORDER.indexOf(a)+1||99) - (CAT_ORDER.indexOf(b)+1||99));
 const tok = id => id.replace(/:/g, '~');
 const untok = t => decodeURIComponent(t).replace(/~/g, ':');
@@ -116,6 +116,7 @@ function renderEntry(e){
     <div class="crumbs"><span class="tag">${esc(e.c)}</span>${FEAT_NAMES[e.f] ? `<a class="tag f" style="background:${fc}" href="#feat~${esc(e.f)}">${esc(FEAT_NAMES[e.f])}</a>` : ''}</div>
     <h2>${sw ? `<span class="swatch" style="background:${sw}" title="cor no jogo: ${esc(e.col)}"></span>` : ''}${esc(e.n)}</h2>
     <div class="key">internal id: <button type="button" id="copyKey" title="Copy">${esc(e.k)}</button>${e.nui ? ' · descriptive name (the game shows no name for this)' : ''}</div>
+    ${e.c === 'Feature' && BY['guide:' + e.k] ? `<div class="banner guide">📘 New here? <a class="x" href="#${tok('guide:' + e.k)}">Read the ${esc(e.n)} guide</a>: the loop, what limits you, what to prioritize and what the helpers measured.</div>` : ''}
     ${(g => g ? `<div class="banner guide">📘 Part of the <b>${esc(g.n)}</b> event. <a class="x" href="#${tok(g.id)}">Read the event guide</a>: what it is, what you'll see, the goal, strategy, bottlenecks and the shop.</div>` : '')(guideFor(e))}
     ${sectionsHTML(e)}
     ${appearsHTML(e, back)}`;
@@ -152,9 +153,9 @@ function sectionsHTML(e){
   const lis = b => `<ul>${b.map(x => `<li>${rich(x)}</li>`).join('')}</ul>`;
   const desc = e.d ? `<div class="desc"><small>Game text</small>${rich(e.d)}</div>` : '';
   // guides (Event) keep their narrative order
-  if (e.c === 'Event') return desc + e.s.map(s => `<section class="s"><h3>${esc(s.h)}</h3>${lis(s.b)}</section>`).join('') + labHTML(e);
+  if (e.c === 'Event' || e.c === 'Guide') return desc + e.s.map(s => `<section class="s"><h3>${esc(s.h)}</h3>${lis(s.b)}</section>`).join('') + labHTML(e);
   const slots = {};
-  for (const s of e.s) { const [n, sub] = slotOf(s.h); (slots[n] = slots[n] || []).push({ s, sub }); }
+  for (const s of e.s.filter(x => x.h !== 'Guide')) { const [n, sub] = slotOf(s.h); (slots[n] = slots[n] || []).push({ s, sub }); }
   const merged = n => {
     const parts = slots[n] || [];
     if (n === 1 && !parts.length && !desc) return '';
@@ -177,7 +178,7 @@ function renderHome(){
     <h2>Gooboo Codex</h2>
     <p>Todos os termos do jogo com o nome que aparece na interface: o que é, de onde vem, como destrava e o que afeta o valor. Clique em qualquer nome sublinhado para navegar.</p>
     ${LAB.ok ? `<div class="banner">${info && info.live ? `Lendo <b>o seu jogo ao vivo</b> (GL ${info.gl}). Toda moeda, estatística e upgrade tem uma calculadora; as features têm o planejador de run. O Codex só lê o jogo, nunca altera nada.` : 'Jogo não encontrado.'}</div>` : ''}
-    <div class="chips"><a href="#guides" title="Beginner guides: every event and the core concepts">📘 Guides</a><a href="#concept~prestige" title="One page per prestige: formula, what resets and what stays, your live gain and when to prestige">⟳ Prestige</a><a href="#guides" data-events="1" title="Event guides: Cinders, Bloom, Weather chaos, Summer festival, Night hunt, Snowdown, Merchant, Casino, Bank">🎪 Events</a></div>
+    <div class="chips"><a href="#guides" title="Beginner guides: every feature, every event and the core concepts">📘 Guides</a><a href="#concept~prestige" title="One page per prestige: formula, what resets and what stays, your live gain and when to prestige">⟳ Prestige</a><a href="#concept~cryolab" title="Cryo lab: what freezing pays, days to each level and where it gives the most Global level">❄ Cryo lab</a><a href="#guides" data-events="1" title="Event guides: Cinders, Bloom, Weather chaos, Summer festival, Night hunt, Snowdown, Merchant, Casino, Bank">🎪 Events</a></div>
     <div class="start" style="margin-top:14px"><a href="#missing">O que falta em cada feature (notes, unlocks, upgrades, cards…)</a></div>
     <h3 style="font:800 20px var(--f-display);margin:20px 0 6px">Planejar a próxima run</h3>
     <div class="start">${['mining','village','horde','farm','gallery'].map(f => `<a href="#feat~${f}">${esc(FEAT_NAMES[f] || f)}</a>`).join('')}</div>
@@ -193,7 +194,8 @@ function renderGuides(){
   const evs = DATA.filter(e => e.c === 'Event'), cons = DATA.filter(e => e.c === 'Conceito').sort((a, b) => a.n.localeCompare(b.n));
   pageEl.innerHTML = `<div class="guides"><button type="button" class="back-btn" id="toList">← Índice</button>
     <div class="crumbs"><span class="tag">Tool</span></div><h2>Guides</h2>
-    <p class="hint">Start here. Event guides explain each event from zero (what it is, what you'll see, goal, strategy, bottlenecks, shop, reset); concept guides explain the systems every feature shares. Names as the game shows them.</p>
+    <p class="hint">Start here. Feature guides explain each feature's loop, what limits you and what to prioritize; event guides explain each event from zero (what it is, what you'll see, goal, strategy, bottlenecks, shop, reset); concept guides explain the systems every feature shares. Names as the game shows them.</p>
+    <h3>🗺 Features</h3><div class="grid">${DATA.filter(e => e.c === 'Guide').map(tile).join('')}${BY['concept:cryolab'] ? tile(BY['concept:cryolab']) : ''}</div>
     <h3 id="g-events">🎪 Events</h3><div class="grid">${evs.map(tile).join('')}</div>
     <h3>🧭 Concepts</h3><div class="grid">${cons.map(tile).join('')}</div></div>`;
   $('toList').onclick = () => appEl.classList.remove('reading');
