@@ -293,6 +293,44 @@ const LAB = (() => {
       ])}</section>`;
   };
 
+  // Prestige pages: what you would get right now (read-only, from the game's own getters)
+  F.prestige = (f, sub = 0) => {
+    const cur = S.system.features[f]?.currentSubfeature ?? 0;
+    const here = f === 'farm' || f === 'gallery' || cur === sub;
+    const bestKey = { mining: 'mining_bestPrestige' + sub, village: 'village_bestPrestige' + sub, horde: 'horde_bestPrestige' + sub, farm: 'farm_bestPrestige', gallery: 'gallery_bestPrestige' }[f];
+    const curKey = { mining: ['mining_crystalGreen', 'mining_crystalYellow'][sub], village: ['village_blessing', 'village_shares'][sub], horde: ['horde_soulEmpowered', 'horde_courage'][sub], gallery: 'gallery_cash' }[f];
+    let gain = null, extra = '';
+    try {
+      if (f === 'mining') { gain = [G['mining/dwellerGreenCrystal'], G['mining/dwellerYellowCrystal']][sub]; const em = Math.floor((mg('currencyMiningEmberGain') || 0) * st('mining_depthDweller' + sub)); extra = `<div><small>+ Ember</small><b>${fmt(em)}</b></div>`; }
+      if (f === 'village') gain = sub ? G['village/sharesGain'] : S.currency.village_faith.value;
+      if (f === 'horde') gain = sub ? mg('currencyHordeCourageGain', S.horde.courageScore) : S.currency.horde_soulCorrupted.value;
+      if (f === 'gallery') gain = G['gallery/prestigeGain'];
+    } catch {}
+    const best = st(bestKey, 'total');
+    const run = f === 'farm' ? 0 : st(f + '_timeSpent');
+    const stones = S.consumable?.gem_prestigeStone?.amount ?? 0;
+    let cryo = null; try { const pg = G['cryolab/prestigeGain'](f); cryo = curKey && pg[curKey] !== undefined ? pg[curKey] : null; } catch {}
+    if (f === 'farm') {
+      const crops = Object.entries(S.farm.crop).filter(([, c]) => c.level >= 4 && c.level > c.levelMax);
+      const add = crops.reduce((a, [, c]) => a + c.level - c.levelMax, 0); let lvl = 0; try { lvl = G['farm/currentPrestigeLevel']; } catch {}
+      return `<section class="lab"><h3>Your Farm prestige now</h3>
+        <div class="kpis"><div><small>Farm prestige level</small><b>${lvl}</b><span>${mulx(Math.pow(1.04, lvl))} crop gain</span></div><div><small>Crops above their record</small><b>${crops.length}</b><span>${crops.length ? '+' + add + ' levels if you prestige them' : 'none yet'}</span></div><div><small>After those prestiges</small><b>${mulx(Math.pow(1.04, lvl + add))}</b><span>${add ? pct(Math.pow(1.04, add)) + ' crop gain' : ''}</span></div><div><small>Best crop prestige</small><b>${fmt(best)}</b></div></div>
+        ${crops.length ? `<p class="hint">Ready: ${crops.map(([k, c]) => `${link('crop:' + k)} ${c.levelMax} → ${c.level}`).join(' · ')}</p>` : ''}</section>`;
+    }
+    const ratio = best > 0 && gain !== null ? gain / best : null;
+    return `<section class="lab"><h3>If you prestige now</h3>
+      ${here ? '' : `<p class="hint">You are in the other subfeature (${esc(GB.en?.subfeature?.[f]?.[cur] || cur)}): this prestige's gain shows when it is open.</p>`}
+      <div class="kpis">
+        <div><small>Gain now</small><b>${here && gain !== null ? fmt(gain) : '—'}</b><span>${curKey ? curLink(curKey) : ''}</span></div>${here ? extra : ''}
+        <div><small>Best prestige</small><b>${fmt(best)}</b><span>${ratio !== null && here ? (ratio >= 1 ? 'now beats it ' : 'now = ') + fmt(ratio * 100, 1) + '%' : ''}</span></div>
+        ${run && here ? `<div><small>This run</small><b>${time(run)}</b><span>${gain ? '≈ ' + fmt(gain / (run / 3600)) + '/h on average' : ''}</span></div>` : ''}
+        <div><small>You hold</small><b>${curKey ? fmt(S.currency[curKey]?.value) : '—'}</b></div>
+        <div><small>Prestige stones</small><b>${fmt(stones)}</b><span>${stones ? 'each = ' + fmt(best) + ' (best prestige), no reset' : ''}</span></div>
+        ${cryo ? `<div><small>Cryo lab</small><b>${fmt(cryo)}/day</b><span>${S.cryolab?.[f]?.active ? 'frozen' : 'passive'}</span></div>` : ''}
+      </div>
+      ${advice([['Reading this', `"Gain now" is exactly what the game's prestige button would give. Compare it with the average per hour: when the gain grows slower than the average, a new run usually pays more. A new best prestige also raises the prestige stone value and the cryo lab income.`]])}</section>`;
+  };
+
   // Global level
   F.gl = () => {
     const parts = S.meta.globalLevelParts; const gl = S.meta.globalLevel;
@@ -392,6 +430,7 @@ const LAB = (() => {
       'concept:battlepass': F.classes, 'upg:horde_education': F.classes, 'upg:horde_university': F.classes, 'concept:gl': F.gl, 'concept:cryolab': F.cryo,
     };
     if (special[id]) parts.unshift(special[id]());
+    if (id.startsWith('prestige:')) { const [f, sb] = e.k.split('.'); const sub = +(sb || 0); parts.push(F.prestige(f, sub)); const more = { mining: () => F.dweller(sub), village: () => sub ? '' : F.faith(), horde: () => sub ? F.classes() : F.souls(), farm: F.crops, gallery: F.cash }[f]; if (more) parts.push(more()); }
     if (id.startsWith('class:')) parts.unshift(F.classes());
     if (id.startsWith('crop:')) parts.push(F.crops());
     if (id.startsWith('feat:') && PLAN[e.k]) parts.unshift(planner(e.k));

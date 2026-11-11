@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gooboo Codex
 // @namespace    gooboo-assist
-// @version      1.4.0
+// @version      1.5.0
 // @description  Fan wiki clicável do Gooboo dentro do jogo: todo termo com o nome da interface, de onde vem, como destrava, calculadoras ligadas ao seu jogo ao vivo, planejador de run e "o que falta" por feature. Só lê o jogo.
 // @author       diogoam
 // @icon         https://tendsty.github.io/gooboo/favicon-32x32.png
@@ -260,8 +260,8 @@
     watch();
   })();
 
-  const VERSION = '1.4.0';
-  const DATA_HASH = 'e8409260bd8f';
+  const VERSION = '1.5.0';
+  const DATA_HASH = 'f4b004e51ca4';
   const DATA_URLS = [
     'https://raw.githubusercontent.com/diogoam/gooboo-codex/main/data/codex-data.json',
     'https://cdn.jsdelivr.net/gh/diogoam/gooboo-codex@main/data/codex-data.json',
@@ -306,7 +306,7 @@
   const FEAT_NAMES = {};
   DATA.filter(e => e.c === 'Feature').forEach(e => FEAT_NAMES[e.k] = e.n);
   const FEAT_VAR = {mining:'--mining',village:'--village',horde:'--horde',farm:'--farm',gallery:'--gallery'};
-  const CAT_ORDER = ['Conceito','Feature','Event','Moeda','Gema','Estatística','Upgrade','Building','Upgrade de prestige','Upgrade premium','Upgrade de shapes','Unlock','Relic','Glyph','Card','Coleção de cards','Card pack','Achievement','Livro','General','Questline','Note','Enhancement','Beacon','Smeltery','Job','Policy','Offering','Receita','Equipamento','Heirloom','Trinket','Sigil','Classe','Área','Torre','Crop','Gene','Farm building','Ideia','Shape','Matéria','Efeito de treasure','Consumível','Upgrade de evento'];
+  const CAT_ORDER = ['Conceito','Feature','Prestige','Event','Moeda','Gema','Estatística','Upgrade','Building','Upgrade de prestige','Upgrade premium','Upgrade de shapes','Unlock','Relic','Glyph','Card','Coleção de cards','Card pack','Achievement','Livro','General','Questline','Note','Enhancement','Beacon','Smeltery','Job','Policy','Offering','Receita','Equipamento','Heirloom','Trinket','Sigil','Classe','Área','Torre','Crop','Gene','Farm building','Ideia','Shape','Matéria','Efeito de treasure','Consumível','Upgrade de evento'];
   const cats = [...new Set(DATA.map(e => e.c))].sort((a,b) => (CAT_ORDER.indexOf(a)+1||99) - (CAT_ORDER.indexOf(b)+1||99));
   const tok = id => id.replace(/:/g, '~');
   const untok = t => decodeURIComponent(t).replace(/~/g, ':');
@@ -626,6 +626,44 @@
         ])}</section>`;
     };
 
+    // Prestige pages: what you would get right now (read-only, from the game's own getters)
+    F.prestige = (f, sub = 0) => {
+      const cur = S.system.features[f]?.currentSubfeature ?? 0;
+      const here = f === 'farm' || f === 'gallery' || cur === sub;
+      const bestKey = { mining: 'mining_bestPrestige' + sub, village: 'village_bestPrestige' + sub, horde: 'horde_bestPrestige' + sub, farm: 'farm_bestPrestige', gallery: 'gallery_bestPrestige' }[f];
+      const curKey = { mining: ['mining_crystalGreen', 'mining_crystalYellow'][sub], village: ['village_blessing', 'village_shares'][sub], horde: ['horde_soulEmpowered', 'horde_courage'][sub], gallery: 'gallery_cash' }[f];
+      let gain = null, extra = '';
+      try {
+        if (f === 'mining') { gain = [G['mining/dwellerGreenCrystal'], G['mining/dwellerYellowCrystal']][sub]; const em = Math.floor((mg('currencyMiningEmberGain') || 0) * st('mining_depthDweller' + sub)); extra = `<div><small>+ Ember</small><b>${fmt(em)}</b></div>`; }
+        if (f === 'village') gain = sub ? G['village/sharesGain'] : S.currency.village_faith.value;
+        if (f === 'horde') gain = sub ? mg('currencyHordeCourageGain', S.horde.courageScore) : S.currency.horde_soulCorrupted.value;
+        if (f === 'gallery') gain = G['gallery/prestigeGain'];
+      } catch {}
+      const best = st(bestKey, 'total');
+      const run = f === 'farm' ? 0 : st(f + '_timeSpent');
+      const stones = S.consumable?.gem_prestigeStone?.amount ?? 0;
+      let cryo = null; try { const pg = G['cryolab/prestigeGain'](f); cryo = curKey && pg[curKey] !== undefined ? pg[curKey] : null; } catch {}
+      if (f === 'farm') {
+        const crops = Object.entries(S.farm.crop).filter(([, c]) => c.level >= 4 && c.level > c.levelMax);
+        const add = crops.reduce((a, [, c]) => a + c.level - c.levelMax, 0); let lvl = 0; try { lvl = G['farm/currentPrestigeLevel']; } catch {}
+        return `<section class="lab"><h3>Your Farm prestige now</h3>
+          <div class="kpis"><div><small>Farm prestige level</small><b>${lvl}</b><span>${mulx(Math.pow(1.04, lvl))} crop gain</span></div><div><small>Crops above their record</small><b>${crops.length}</b><span>${crops.length ? '+' + add + ' levels if you prestige them' : 'none yet'}</span></div><div><small>After those prestiges</small><b>${mulx(Math.pow(1.04, lvl + add))}</b><span>${add ? pct(Math.pow(1.04, add)) + ' crop gain' : ''}</span></div><div><small>Best crop prestige</small><b>${fmt(best)}</b></div></div>
+          ${crops.length ? `<p class="hint">Ready: ${crops.map(([k, c]) => `${link('crop:' + k)} ${c.levelMax} → ${c.level}`).join(' · ')}</p>` : ''}</section>`;
+      }
+      const ratio = best > 0 && gain !== null ? gain / best : null;
+      return `<section class="lab"><h3>If you prestige now</h3>
+        ${here ? '' : `<p class="hint">You are in the other subfeature (${esc(GB.en?.subfeature?.[f]?.[cur] || cur)}): this prestige's gain shows when it is open.</p>`}
+        <div class="kpis">
+          <div><small>Gain now</small><b>${here && gain !== null ? fmt(gain) : '—'}</b><span>${curKey ? curLink(curKey) : ''}</span></div>${here ? extra : ''}
+          <div><small>Best prestige</small><b>${fmt(best)}</b><span>${ratio !== null && here ? (ratio >= 1 ? 'now beats it ' : 'now = ') + fmt(ratio * 100, 1) + '%' : ''}</span></div>
+          ${run && here ? `<div><small>This run</small><b>${time(run)}</b><span>${gain ? '≈ ' + fmt(gain / (run / 3600)) + '/h on average' : ''}</span></div>` : ''}
+          <div><small>You hold</small><b>${curKey ? fmt(S.currency[curKey]?.value) : '—'}</b></div>
+          <div><small>Prestige stones</small><b>${fmt(stones)}</b><span>${stones ? 'each = ' + fmt(best) + ' (best prestige), no reset' : ''}</span></div>
+          ${cryo ? `<div><small>Cryo lab</small><b>${fmt(cryo)}/day</b><span>${S.cryolab?.[f]?.active ? 'frozen' : 'passive'}</span></div>` : ''}
+        </div>
+        ${advice([['Reading this', `"Gain now" is exactly what the game's prestige button would give. Compare it with the average per hour: when the gain grows slower than the average, a new run usually pays more. A new best prestige also raises the prestige stone value and the cryo lab income.`]])}</section>`;
+    };
+
     // Global level
     F.gl = () => {
       const parts = S.meta.globalLevelParts; const gl = S.meta.globalLevel;
@@ -725,6 +763,7 @@
         'concept:battlepass': F.classes, 'upg:horde_education': F.classes, 'upg:horde_university': F.classes, 'concept:gl': F.gl, 'concept:cryolab': F.cryo,
       };
       if (special[id]) parts.unshift(special[id]());
+      if (id.startsWith('prestige:')) { const [f, sb] = e.k.split('.'); const sub = +(sb || 0); parts.push(F.prestige(f, sub)); const more = { mining: () => F.dweller(sub), village: () => sub ? '' : F.faith(), horde: () => sub ? F.classes() : F.souls(), farm: F.crops, gallery: F.cash }[f]; if (more) parts.push(more()); }
       if (id.startsWith('class:')) parts.unshift(F.classes());
       if (id.startsWith('crop:')) parts.push(F.crops());
       if (id.startsWith('feat:') && PLAN[e.k]) parts.unshift(planner(e.k));
@@ -1184,15 +1223,19 @@
   // The data keeps its original headings (calc.js reads them); here they are mapped to the canonical order and merged.
   const SEC_SLOT = {
     'O que é': [1, null], 'What it is': [1, null], 'O que mede': [1, 'What it measures'],
-    'De onde vem': [2, 'Source'], 'Como destrava': [2, 'Unlock'], 'Destrava': [2, 'Unlock'], 'Custo': [2, 'Cost'], 'How to get it': [2, null],
+    'De onde vem': [2, 'Source'], 'Como destrava': [2, 'Unlock'], 'When to prestige': [8, null], 'Destrava': [2, 'Unlock'], 'Custo': [2, 'Cost'], 'How to get it': [2, null],
     'Efeitos': [3, 'Effects'], 'What it does': [3, null], 'Efeito quando equipada': [3, 'When equipped'], 'Usada para comprar': [3, 'Used to buy'],
     'O que este unlock libera': [3, 'What it unlocks'], 'Níveis': [3, 'Levels'], 'Efeitos por nível': [3, 'Per level'], 'Efeito por cópia': [3, 'Per copy'],
+    'Atributos (nível 1)': [3, 'Stats (level 1)'], 'Atributos base': [3, 'Base stats'], 'Habilidades': [3, 'Skills'], 'Produz por trabalhador': [3, 'Per worker'],
+    'Drops raros': [3, 'Rare drops'], 'Boss final': [3, 'Final boss'], 'Recompensas por andar': [3, 'Floor rewards'], 'Conteúdo': [3, 'Contents'], 'Questlines': [3, 'Questlines'],
+    'Estágios': [3, 'Stages'], 'Milestones (cada um = +1 GL)': [3, 'Milestones (each = +1 GL)'], 'Subfeatures': [3, 'Subfeatures'], 'Ao repetir': [3, 'Extra copies'],
+    'Glyphs no Museum': [3, 'Glyphs in the Museum'], 'Cartas': [2, 'Cards needed'], 'O que mede': [1, 'What it measures'],
     'Bônus ao completar': [3, 'On completion'], 'Efeito especial': [3, 'Special effect'], 'Habilidade ativa': [3, 'Active ability'], 'Bônus de cards': [3, 'Card bonus'],
     'Como é calculado': [5, null], "How it's calculated": [5, null], 'Fórmula': [5, 'Formula'],
     'Afetado por': [6, null], 'Gain affected by': [6, null], 'Capacity affected by': [7, null],
     'Groups': [9, null], 'Grupos': [9, null], 'Grupo': [9, null], 'Mencionado por': [10, null],
   };
-  const SEC_TITLE = { 10: 'Appears in', 1: 'What it is', 2: 'How to get it', 3: 'What it does', 5: "How it's calculated", 6: 'Gain affected by', 7: 'Capacity affected by', 9: 'Groups' };
+  const SEC_TITLE = { 8: 'When to prestige', 10: 'Appears in', 1: 'What it is', 2: 'How to get it', 3: 'What it does', 5: "How it's calculated", 6: 'Gain affected by', 7: 'Capacity affected by', 9: 'Groups' };
   const slotOf = h => SEC_SLOT[h] || (/^Efeitos \(nível/.test(h) ? [3, h.replace('Efeitos (nível', 'Effects (level')] : [4, null]);
   function appearsHTML(e, back){
     const men = e.s.filter(s => s.h === 'Mencionado por').flatMap(s => s.b);
@@ -1215,7 +1258,8 @@
       return `<section class="s"><h3>${SEC_TITLE[n]}</h3>${n === 1 ? desc : ''}${body}</section>`;
     };
     const other = (slots[4] || []).map(({ s }) => `<section class="s"><h3>${esc(s.h)}</h3>${lis(s.b)}</section>`).join('');
-    return merged(1) + merged(2) + merged(3) + other + merged(5) + merged(6) + merged(7) + labHTML(e) + merged(9);
+    if (e.c === 'Prestige') return merged(1) + labHTML(e) + merged(2) + merged(3) + merged(8) + merged(5) + other + merged(6) + merged(7) + merged(9);
+    return merged(1) + merged(2) + merged(3) + other + merged(5) + merged(8) + merged(6) + merged(7) + labHTML(e) + merged(9);
   }
   function labHTML(e){ try { return LAB.forEntry(e); } catch (err) { console.warn('[Codex]', err); return `<p class="hint">Calculadora indisponível para este verbete (${esc(err.message)}).</p>`; } }
   function rerenderCurrent(){ if (!currentId) return; const y = mainEl.scrollTop; renderEntry(BY[currentId]); mainEl.scrollTop = y; }
@@ -1228,7 +1272,7 @@
       <h2>Gooboo Codex</h2>
       <p>Todos os termos do jogo com o nome que aparece na interface: o que é, de onde vem, como destrava e o que afeta o valor. Clique em qualquer nome sublinhado para navegar.</p>
       ${LAB.ok ? `<div class="banner">${info && info.live ? `Lendo <b>o seu jogo ao vivo</b> (GL ${info.gl}). Toda moeda, estatística e upgrade tem uma calculadora; as features têm o planejador de run. O Codex só lê o jogo, nunca altera nada.` : 'Jogo não encontrado.'}</div>` : ''}
-      <div class="chips"><a href="#guides" title="Beginner guides: every event and the core concepts">📘 Guides</a><a href="#guides" data-events="1" title="Event guides: Cinders, Bloom, Weather chaos, Summer festival, Night hunt, Snowdown, Merchant, Casino, Bank">🎪 Events</a></div>
+      <div class="chips"><a href="#guides" title="Beginner guides: every event and the core concepts">📘 Guides</a><a href="#concept~prestige" title="One page per prestige: formula, what resets and what stays, your live gain and when to prestige">⟳ Prestige</a><a href="#guides" data-events="1" title="Event guides: Cinders, Bloom, Weather chaos, Summer festival, Night hunt, Snowdown, Merchant, Casino, Bank">🎪 Events</a></div>
       <div class="start" style="margin-top:14px"><a href="#missing">O que falta em cada feature (notes, unlocks, upgrades, cards…)</a></div>
       <h3 style="font:800 20px var(--f-display);margin:20px 0 6px">Planejar a próxima run</h3>
       <div class="start">${['mining','village','horde','farm','gallery'].map(f => `<a href="#feat~${f}">${esc(FEAT_NAMES[f] || f)}</a>`).join('')}</div>

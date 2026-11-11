@@ -254,7 +254,7 @@ const PRESTIGE = {
   horde: [`${subName('horde', 0)} → ${C('horde_soulEmpowered')} = the ${C('horde_soulCorrupted')} you hold (limited by soul capacity, which grows with your record zone). ${subName('horde', 1)} → ${C('horde_courage')} from the run's courage score.`,
     `Resets: regular upgrades, regular currencies (bone, monster parts, blood, flesh, souls), run stats, equipped items, item levels of items with mastery below 3, found items with mastery below 1, per-run item effects. Keeps: mastery 3+ levels, heirlooms, prestige/premium upgrades, crowns, keys.`,
     `When: soul gain per drop grows ×1.1 per zone but capacity caps what you keep — prestige when you are near capacity or soul gain per hour drops below the run average.`],
-  farm: [`No feature-wide prestige: each crop prestiges on its own. A crop prestige resets that crop's level and raises its record; every level above the record gives ×1.04 to that crop.`,
+  farm: [`No feature-wide prestige: each crop prestiges on its own. A crop prestige resets that crop's level and raises its record; the sum of all crop records gives ×1.04 per level to the crop gain of every crop.`,
     `Crop records also feed Farm Global level (per crop: min(level, level÷2+5, 25)).`],
   gallery: [`${L('feat:gallery')} → ${C('gallery_cash')} = 10^(log₈(beauty ÷ 1e11)^0.7) × Cash gain; needs at least 1e12 beauty this run.`,
     `Resets: regular upgrades, regular currencies (beauty, paints, drums, shapes, motivation), run stats, idea levels (owned ideas stay owned), canvas spaces and the shape board. Keeps: prestige and premium upgrades, shape upgrades.`,
@@ -264,7 +264,7 @@ for (const [f, lines] of Object.entries(PRESTIGE)) { const e = BY['feat:' + f]; 
 const pc = BY['concept:prestige'];
 if (pc) pc.s = [
   { h: 'What it is', b: [`Resetting one feature to turn this run's progress into a permanent prestige currency. Each feature (and subfeature) prestiges on its own; nothing else resets.`] },
-  { h: 'What each one gives', b: [`${L('feat:mining')}: ${C('mining_crystalGreen')} / ${C('mining_crystalYellow')} + ${C('mining_ember')}`, `${L('feat:village')}: ${C('village_blessing')} (from ${C('village_faith')}) / ${C('village_shares')} (from ${C('village_copperCoin')})`, `${L('feat:horde')}: ${C('horde_soulEmpowered')} (from ${C('horde_soulCorrupted')}) / ${C('horde_courage')}`, `${L('feat:farm')}: per crop (×1.04 per level above the record)`, `${L('feat:gallery')}: ${C('gallery_cash')} (from ${C('gallery_beauty')})`] },
+  { h: 'What each one gives', b: [`${L('feat:mining')}: ${C('mining_crystalGreen')} / ${C('mining_crystalYellow')} + ${C('mining_ember')}`, `${L('feat:village')}: ${C('village_blessing')} (from ${C('village_faith')}) / ${C('village_shares')} (from ${C('village_copperCoin')})`, `${L('feat:horde')}: ${C('horde_soulEmpowered')} (from ${C('horde_soulCorrupted')}) / ${C('horde_courage')}`, `${L('feat:farm')}: per crop (every record level of any crop adds ×1.04 crop gain to all)`, `${L('feat:gallery')}: ${C('gallery_cash')} (from ${C('gallery_beauty')})`] },
   { h: 'Details', b: [`Prestige and premium upgrades never reset. Selected cards are equipped at the moment you prestige (${L('concept:cards')}). Your best prestige feeds the ${L('concept:cryolab')}. Each feature page has a Prestige section with what resets and when to prestige.`] },
 ];
 
