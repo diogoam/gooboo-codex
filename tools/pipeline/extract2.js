@@ -20,22 +20,22 @@ const parseMap = (file) => {
 const noteSrc = {}; // note -> [{feature, how, sort}]
 const add = (n, how, sortKey = 0, group = null, extra = {}) => { (noteSrc[n] = noteSrc[n] || []).push({ how, sortKey, group, ...extra }); };
 for (const [k, v] of Object.entries(st.meta.globalLevelNotes)) add(k, `Global Level ≥ ${v}`, v, 'GL');
-for (const [d, n] of Object.entries(parseMap('js/modules/mining.js'))) add(n, `Mining (Ore mine): quebrar a camada de ${d} m pela 1ª vez`, +d, 'mining');
-for (const [z, n] of Object.entries(parseMap('store/horde.js'))) add(n, `Horde (Equipment): derrotar o boss da zona ${z}`, +z, 'horde');
-for (const [c, n] of Object.entries(parseMap('store/farm.js'))) add(n, `Farm: colher ${(en.farm.crop || {})[c] || c} pela 1ª vez`, 0, 'farm', { crop: c });
-for (const [k, u] of Object.entries(st.upgrade.item)) if (u.note) add(u.note, `Comprar o 1º nível de ${en.upgrade[k] || k}`, u.requirementValue ?? 0, 'upgrade', { upgrade: k });
-for (const [g, gen] of Object.entries(st.general)) for (const [q, qu] of Object.entries(gen.quests)) qu.stages.forEach((sg, i) => { if (sg.note) add(sg.note, `${en.general[g]?.name || g} · ${en.general[g]?.[q] || q} · estágio ${i + 1}`, i, 'general', { general: g, quest: q, stage: i + 1 }); });
+for (const [d, n] of Object.entries(parseMap('js/modules/mining.js'))) add(n, `Mining (Ore mine): break the ${d} m layer for the first time`, +d, 'mining');
+for (const [z, n] of Object.entries(parseMap('store/horde.js'))) add(n, `Horde (Equipment): beat the zone ${z} boss`, +z, 'horde');
+for (const [c, n] of Object.entries(parseMap('store/farm.js'))) add(n, `Farm: harvest ${(en.farm.crop || {})[c] || c} for the first time`, 0, 'farm', { crop: c });
+for (const [k, u] of Object.entries(st.upgrade.item)) if (u.note) add(u.note, `Buy the first level of ${en.upgrade[k] || k}`, u.requirementValue ?? 0, 'upgrade', { upgrade: k });
+for (const [g, gen] of Object.entries(st.general)) for (const [q, qu] of Object.entries(gen.quests)) qu.stages.forEach((sg, i) => { if (sg.note) add(sg.note, `${en.general[g]?.name || g} · ${en.general[g]?.[q] || q} · stage ${i + 1}`, i, 'general', { general: g, quest: q, stage: i + 1 }); });
 [
-  ['event_1', 'Início de qualquer evento grande'], ['event_2', 'Gems secundárias convertidas em moeda de evento grande (durante evento)'],
-  ['event_3', 'Início do evento Merchant'], ['event_4', 'Casino tipo Bingo'], ['event_5', 'Casino tipo Roda da Fortuna'], ['event_6', 'Início do evento Bank'],
-  ['event_7', 'Início do Cinders'], ['event_8', 'Cinders: ganhar light'], ['event_9', 'Cinders: usar uma vela'], ['event_10', 'Cinders: ganhar tokens (light ≥ 10K)'],
-  ['event_11', 'Início do Bloom'], ['event_12', 'Bloom: cruzar flores (breeder)'], ['event_13', 'Bloom: vender/colher flor de um slot'], ['event_14', 'Bloom: novo tier máximo de flor (tokens)'],
-  ['event_15', 'Início do Weather Chaos'], ['event_16', 'Weather Chaos: pescar um peixe'], ['event_17', 'Weather Chaos: tesouro libera próxima localização'], ['event_18', 'Weather Chaos: novo recorde de tamanho de peixe'],
-  ['event_19', 'Início do Summer Festival'], ['event_20', 'Summer Festival: construir Collector'], ['event_21', 'Summer Festival: 4+ quests concluídas'], ['event_22', 'Summer Festival: construir Main Stage'],
-  ['event_23', 'Summer Festival: quest múltipla de 5 (expansão grátis)'], ['event_24', 'Summer Festival: construir Sawmill ou Kitchen'], ['event_25', 'Summer Festival: concluir uma quest'],
-  ['event_26', 'Início do Night Hunt'], ['event_27', 'Night Hunt: trocar moeda'], ['event_28', 'Night Hunt: ritual que melhora uma poção'], ['event_29', 'Night Hunt: ritual bem-sucedido sem poção'],
-  ['event_30', 'Início do Snowdown'], ['event_31', 'Snowdown: ganhar um pet como recompensa'], ['event_32', 'Snowdown: vencer a 4ª+ luta'], ['event_33', 'Snowdown: vencer uma luta'],
-  ['card_1', 'Card: completar uma coleção inteira'], ['school_1', 'School: concluir estudo/exame que dá golden dust'], ['cryolab_1', 'Cryolab: primeiro nível de cryolab'], ['school_2', 'School: abrir a tela da Library (BookLibrary)'],
+  ['event_1', 'Any big event starts'], ['event_2', 'During a big event, other gems turn into the event currency'],
+  ['event_3', 'The Merchant event starts'], ['event_4', 'A Bingo casino'], ['event_5', 'A Wheel of fortune casino'], ['event_6', 'The Bank event starts'],
+  ['event_7', 'Cinders starts'], ['event_8', 'Cinders: gain light'], ['event_9', 'Cinders: use a candle'], ['event_10', 'Cinders: earn tokens (light ≥ 10K)'],
+  ['event_11', 'Bloom starts'], ['event_12', 'Bloom: breed flowers (breeder)'], ['event_13', 'Bloom: sell or harvest a flower from a slot'], ['event_14', 'Bloom: reach a new highest flower tier (tokens)'],
+  ['event_15', 'Weather Chaos starts'], ['event_16', 'Weather Chaos: catch a fish'], ['event_17', 'Weather Chaos: a treasure opens the next location'], ['event_18', 'Weather Chaos: a new fish size record'],
+  ['event_19', 'Summer Festival starts'], ['event_20', 'Summer Festival: build a Collector'], ['event_21', 'Summer Festival: finish 4 or more quests'], ['event_22', 'Summer Festival: build the Main Stage'],
+  ['event_23', 'Summer Festival: every 5th quest (free expansion)'], ['event_24', 'Summer Festival: build a Sawmill or a Kitchen'], ['event_25', 'Summer Festival: finish a quest'],
+  ['event_26', 'Night Hunt starts'], ['event_27', 'Night Hunt: trade a currency'], ['event_28', 'Night Hunt: a ritual that improves a potion'], ['event_29', 'Night Hunt: a ritual that works without a potion'],
+  ['event_30', 'Snowdown starts'], ['event_31', 'Snowdown: win a pet as a reward'], ['event_32', 'Snowdown: win the 4th fight or later'], ['event_33', 'Snowdown: win a fight'],
+  ['card_1', 'Card: finish a whole collection'], ['school_1', 'School: finish a study or exam that gives golden dust'], ['cryolab_1', 'Cryolab: reach the first cryolab level'], ['school_2', 'School: open the Library screen'],
 ].forEach(([n, h]) => add(n, h, 0, 'hardcoded'));
 const notes = {};
 for (const [k, n] of Object.entries(st.note)) {
@@ -82,10 +82,10 @@ const taskStr = t => {
       if (st.currency[t.name]) label = T('general.questGained').replace('{0}', T('currency.' + t.name));
       else if (t.name.slice(-3) === 'Max' && st.currency[t.name.slice(0, -3)]) label = T('general.questHighestAmount').replace('{0}', T('currency.' + t.name.slice(0, -3)));
       else label = (en.stat[t.name] && en.stat[t.name].description) || t.name;
-      if (t.subtype === 'current') label += ' (nesta run)';
+      if (t.subtype === 'current') label += ' (this run)';
       break;
     case 'unlock': return `${T('gooboo.unlock')}: ${T('unlock.' + t.name) || t.name}`;
-    case 'cardEquipped': return `${T('general.questEquipCard')}: ${t.name}${T('card.card.' + t.name) ? ' (' + T('card.card.' + t.name) + ')' : ''}${t.giveCard ? ' — o jogo dá 6 cópias' : ''}`;
+    case 'cardEquipped': return `${T('general.questEquipCard')}: ${t.name}${T('card.card.' + t.name) ? ' (' + T('card.card.' + t.name) + ')' : ''}${t.giveCard ? ' — the game gives you 6 copies' : ''}`;
     case 'upgrade': label = `${T('upgrade.' + t.name) || t.name} ${T('gooboo.level')}`; break;
     case 'cropLevel': label = `${T('farm.crop.' + t.name) || t.name} ${T('gooboo.level')}`; break;
     case 'equipmentMastery': label = `${T('horde.equipment.' + t.name) || t.name} ${T('gooboo.level')}`; break;

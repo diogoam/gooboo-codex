@@ -23,17 +23,17 @@
 <div class="wrap"><div class="app" id="app">
   <aside class="rail">
     <div class="brand">
-      <h1><button id="homeBtn" type="button" title="Início">Gooboo Codex</button> <span class="ver" id="verTag" title="Versão do script instalada">v${VERSION}</span></h1>
+      <h1><button id="homeBtn" type="button" title="Home">Gooboo Codex</button> <span class="ver" id="verTag" title="Installed script version">v${VERSION}</span></h1>
       <span class="tools">
         <button type="button" class="ib" id="backBtn" title="Voltar" disabled>←</button>
-        <button type="button" class="ib" id="refreshBtn" title="Atualizar com os valores atuais do jogo">↻</button>
-        ${popup ? '' : '<button type="button" class="ib" id="minBtn" title="Minimizar: o painel vira uma faixa estreita na borda (clique em ▢ para expandir)">−</button><button type="button" class="ib" id="popBtn" title="Abrir em janela separada">⧉</button><button type="button" class="ib" id="closeBtn" title="Fechar (Esc)">✕</button>'}
+        <button type="button" class="ib" id="refreshBtn" title="Refresh with the current game values">↻</button>
+        ${popup ? '' : '<button type="button" class="ib" id="minBtn" title="Minimize: the panel turns into a thin strip at the edge (click ▢ to open it again)">−</button><button type="button" class="ib" id="popBtn" title="Open in a separate window">⧉</button><button type="button" class="ib" id="closeBtn" title="Close (Esc)">✕</button>'}
       </span>
     </div>
     <div class="live"><span class="st-dot" id="liveDot"></span><span id="liveTxt">…</span></div>
-    <div class="rail-links"><a href="#missing" class="btn ghost">O que falta (todas as features)</a></div>
-    <div class="search"><input id="q" type="search" placeholder="Buscar: Scrap, Depth dweller, Torch…" autocomplete="off" aria-label="Buscar no codex"></div>
-    <div class="cats" id="cats" role="group" aria-label="Filtrar por tipo"></div>
+    <div class="rail-links"><a href="#missing" class="btn ghost">What's missing (all features)</a></div>
+    <div class="search"><input id="q" type="search" placeholder="Search: Scrap, Depth dweller, Torch…" autocomplete="off" aria-label="Search the Codex"></div>
+    <div class="cats" id="cats" role="group" aria-label="Filter by type"></div>
     <div class="count" id="count"></div>
     <ul class="list" id="list"></ul>
   </aside>
@@ -74,14 +74,14 @@
           const r = await fetch(url + '?h=' + DATA_HASH, { cache: 'no-cache' });
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           const d = await r.json();
-          if (!d || !Array.isArray(d.glossary)) throw new Error('arquivo inválido');
+          if (!d || !Array.isArray(d.glossary)) throw new Error('invalid file');
           if (d.hash !== DATA_HASH) console.warn('[Codex] dados com hash diferente do script', d.hash, DATA_HASH);
           await cachePut('data', d);
           return d;
         } catch (e) { lastErr = e; }
       }
       if (cached) { console.warn('[Codex] usando dados em cache antigos:', lastErr); return cached; }
-      throw new Error('Não consegui baixar os dados do Codex (' + (lastErr?.message || 'erro') + ').');
+      throw new Error('Could not download the Codex data (' + (lastErr?.message || 'error') + ').');
     })();
     dataPromise.catch(() => { dataPromise = null; });
     return dataPromise;
@@ -102,7 +102,7 @@
   function showNewVersion(root) {
     const el = root && root.getElementById && root.getElementById('verTag'); if (!el) return;
     if (remoteVer && newer(remoteVer, VERSION)) {
-      el.innerHTML = `v${VERSION} · <a href="${DIST_URL}" target="_blank" rel="noopener" title="Abre o arquivo da versão nova; o Tampermonkey oferece a instalação">v${remoteVer} disponível</a>`;
+      el.innerHTML = `v${VERSION} · <a href="${DIST_URL}" target="_blank" rel="noopener" title="Opens the new version; Tampermonkey offers to install it">v${remoteVer} available</a>`;
       el.classList.add('new');
     } else { el.textContent = 'v' + VERSION; el.classList.remove('new'); }
   }
@@ -151,9 +151,9 @@
       shadow = host.attachShadow({ mode: 'open' });
       const st = document.createElement('style'); st.textContent = CSS_SHADOW; shadow.appendChild(st);
       const root = document.createElement('div'); root.className = 'root'; shadow.appendChild(root);
-      const grip = document.createElement('div'); grip.className = 'grip'; grip.title = 'Arraste para mudar a largura'; shadow.appendChild(grip);
+      const grip = document.createElement('div'); grip.className = 'grip'; grip.title = 'Drag to change the width'; shadow.appendChild(grip);
       const mini = document.createElement('div'); mini.className = 'mini'; mini.style.display = 'none';
-      mini.innerHTML = '<button type="button" class="ib" title="Expandir o Codex">▢</button><span>📖 Codex</span>';
+      mini.innerHTML = '<button type="button" class="ib" title="Open the Codex">▢</button><span>📖 Codex</span>';
       mini.querySelector('button').onclick = () => setMin(false);
       shadow.appendChild(mini);
       grip.addEventListener('pointerdown', ev => {
@@ -171,11 +171,11 @@
     updateChip();
     if (panelApp) { panelApp.refresh(); return; }
     const root = shadow.querySelector('.root');
-    message(root, 'Carregando o Codex…');
+    message(root, 'Loading the Codex…');
     try {
       const d = await loadData();
       const GB = liveGB();
-      if (!GB) { message(root, 'O jogo ainda não terminou de carregar. Tente de novo em alguns segundos.'); return; }
+      if (!GB) { message(root, 'The game has not finished loading. Try again in a few seconds.'); return; }
       root.innerHTML = SHELL(false);
       // ShadowRoot tem getElementById, querySelector e activeElement — o app usa só isso
       showNewVersion(shadow);
@@ -183,7 +183,7 @@
       panelApp = mountCodex(shadow, { DATA: d.glossary, GBF: d.gbf, META: d.meta, COLORS: d.colors, GB, isPopup: false, onPopout: route => { openPopup(route); closePanel(); }, onClose: closePanel });
     } catch (e) {
       console.error('[Codex]', e);
-      message(root, `${e.message}<br><br>Os dados ficam em <b>github.com/diogoam/gooboo-codex</b> (pasta data). <button type="button" class="btn" id="retry">Tentar de novo</button>`);
+      message(root, `${e.message}<br><br>The data lives at <b>github.com/diogoam/gooboo-codex</b> (data folder). <button type="button" class="btn" id="retry">Try again</button>`);
       const b = shadow.getElementById('retry'); if (b) b.onclick = () => { panelApp = null; openPanel(); };
     }
   }
@@ -193,7 +193,7 @@
   async function openPopup(route) {
     if (popWin && !popWin.closed) { popWin.focus(); if (route !== undefined && popApp) popApp.show(route); return; }
     const w = window.open('', 'gooboo-codex', 'popup=yes,width=1100,height=820');
-    if (!w) { alert('O navegador bloqueou a janela do Codex. Permita pop-ups para tendsty.github.io.'); return; }
+    if (!w) { alert('The browser blocked the Codex window. Allow pop-ups for tendsty.github.io.'); return; }
     popWin = w;
     const doc = w.document;
     doc.open();
@@ -204,7 +204,7 @@
     try {
       const d = await loadData();
       const GB = liveGB();
-      if (!GB) { doc.body.innerHTML = '<div class="wrap"><div class="msgbox">O jogo ainda não terminou de carregar.</div></div>'; return; }
+      if (!GB) { doc.body.innerHTML = '<div class="wrap"><div class="msgbox">The game has not finished loading.</div></div>'; return; }
       doc.body.innerHTML = SHELL(true);
       showNewVersion(doc);
       popApp = mountCodex(doc, { DATA: d.glossary, GBF: d.gbf, META: d.meta, COLORS: d.colors, GB, isPopup: true, route });
@@ -237,7 +237,7 @@
     chip.className = 'ga-chip';
     chip.dataset.gaOrder = '100'; // Codex sempre o último do dock
     chip.textContent = '📖 Codex';
-    chip.title = 'Gooboo Codex — clique: painel lateral · Shift+clique ou botão do meio: janela separada';
+    chip.title = 'Gooboo Codex — click: side panel · Shift+click or middle click: separate window';
     chip.style.cssText = 'padding:3px 11px;border-radius:16px;font-size:12px;cursor:pointer;color:#fff;border:1px solid rgba(127,214,196,.7);background:rgba(29,111,98,.45);white-space:nowrap';
     chip.addEventListener('click', ev => { if (ev.shiftKey) { openPopup(); return; } if (cfg.open && host && host.style.display !== 'none') { if (cfg.min) setMin(false); else closePanel(); } else openPanel(); });
     chip.addEventListener('auxclick', ev => { if (ev.button === 1) { ev.preventDefault(); openPopup(); } });

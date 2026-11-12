@@ -12,7 +12,7 @@
 body{margin:0}
 .brand h1{font-size:22px}
 .brand h1 .ver{font:500 11px var(--f-body);color:var(--ink-3,#888);margin-left:4px;vertical-align:middle}
-/* 1.3: busca no texto, seções mescladas, "O que falta" */
+/* 1.3: full-text search, merged sections, "What's missing" */
 .list li button{flex-wrap:wrap}
 .list .hit{flex-basis:100%;font-size:12px;line-height:1.35;color:var(--muted);padding-left:18px;white-space:normal}
 .list .hit b{font-weight:700}
@@ -26,7 +26,7 @@ details.back ul.men{columns:1;margin-bottom:8px}
 .tudo details summary{cursor:pointer}
 .tudo details ul{margin:6px 0 2px 16px;padding:0;font-size:13px}
 .tudo details li{margin:2px 0}
-/* 1.4: versão nova, faixa minimizada, guia do evento no topo, página de guias */
+/* 1.4: new-version notice, minimized strip, event guide banner, guides page */
 .brand h1 .ver.new a{color:var(--good);font-weight:700}
 .mini{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:10px;background:var(--panel);border-left:1px solid var(--line)}
 .mini span{writing-mode:vertical-rl;font:700 13px var(--f-body);color:var(--muted);letter-spacing:.04em}

@@ -14,7 +14,7 @@ const BY = Object.fromEntries(DATA.map(e => [e.id, e]));
 const FEAT_NAMES = {};
 DATA.filter(e => e.c === 'Feature').forEach(e => FEAT_NAMES[e.k] = e.n);
 const FEAT_VAR = {mining:'--mining',village:'--village',horde:'--horde',farm:'--farm',gallery:'--gallery'};
-const CAT_ORDER = ['Guide','Conceito','Feature','Prestige','Event','Moeda','Gema','Estatística','Upgrade','Building','Upgrade de prestige','Upgrade premium','Upgrade de shapes','Unlock','Relic','Glyph','Card','Coleção de cards','Card pack','Achievement','Livro','General','Questline','Note','Enhancement','Beacon','Smeltery','Job','Policy','Offering','Receita','Equipamento','Heirloom','Trinket','Sigil','Classe','Área','Torre','Crop','Gene','Farm building','Ideia','Shape','Matéria','Efeito de treasure','Consumível','Upgrade de evento'];
+const CAT_ORDER = ['Guide','Concept','Feature','Prestige','Event','Currency','Gem','Stat','Upgrade','Building','Prestige upgrade','Premium upgrade','Shape upgrade','Unlock','Relic','Glyph','Card','Card collection','Card pack','Achievement','Book','General','Questline','Note','Enhancement','Beacon','Smeltery','Job','Policy','Offering','Recipe','Equipment','Heirloom','Trinket','Sigil','Class','Area','Tower','Crop','Gene','Farm building','Idea','Shape','Subject','Treasure effect','Consumable','Event upgrade'];
 const cats = [...new Set(DATA.map(e => e.c))].sort((a,b) => (CAT_ORDER.indexOf(a)+1||99) - (CAT_ORDER.indexOf(b)+1||99));
 const tok = id => id.replace(/:/g, '~');
 const untok = t => decodeURIComponent(t).replace(/~/g, ':');
@@ -59,7 +59,7 @@ const guideFor = e => {
   if (!g) { const from = [...(BACK[e.id] || [])].filter(id => id.startsWith('event:')); if (from.length === 1) g = from[0].slice(6); }
   return g ? BY['event:' + g] : null;
 };
-const TOOLS = [{ id: 'guides', n: 'Guides', c: 'Tool', words: 'guides guias events eventos beginner iniciante concepts conceitos' }, { id: 'missing', n: "What's missing (O que falta)", c: 'Tool', words: "what's missing o que falta closest to getting mais perto de sair everything tudo notes unlocks upgrades cards relics questlines achievements" }];
+const TOOLS = [{ id: 'guides', n: 'Guides', c: 'Tool', words: 'guides guias events eventos beginner iniciante concepts conceitos' }, { id: 'missing', n: "What's missing", c: 'Tool', words: "what's missing o que falta closest to getting mais perto de sair everything tudo notes unlocks upgrades cards relics questlines achievements" }];
 const snip = (raw, nq) => {
   const i = norm(raw).indexOf(nq); if (i < 0) return '';
   const a = Math.max(0, i - 40), b = Math.min(raw.length, i + nq.length + 60);
@@ -80,7 +80,7 @@ function search(q){
     else { const i = r.t.findIndex(t => t.includes(nq)); if (i >= 0) { sc = 12; hit = { h: r.secs[i].h, s: snip(r.secs[i].t, nq) }; } else if (r.c.includes(nq)) sc = 10; }
     if (!sc) continue;
     // guias e conceitos primeiro quando empatam
-    sc += r.e.c === 'Event' ? 8 : (r.e.c === 'Conceito' || r.e.c === 'Moeda' || r.e.c === 'Gema') ? 5 : 0;
+    sc += r.e.c === 'Event' ? 8 : (r.e.c === 'Concept' || r.e.c === 'Currency' || r.e.c === 'Gem') ? 5 : 0;
     if (hit) lastHits.set(r.e.id, hit);
     scored.push([sc, r.e]);
   }
@@ -100,7 +100,7 @@ let t; qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(ren
 qEl.addEventListener('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') { const r = search(qEl.value)[0]; if (r) go(r.id); } });
 const catsEl = $('cats');
 function renderCats(){
-  catsEl.innerHTML = [`<button type="button" class="cat" aria-pressed="${!activeCat}" data-c="">Tudo</button>`].concat(cats.map(c => `<button type="button" class="cat" aria-pressed="${activeCat === c}" data-c="${esc(c)}">${esc(c)}</button>`)).join('');
+  catsEl.innerHTML = [`<button type="button" class="cat" aria-pressed="${!activeCat}" data-c="">All</button>`].concat(cats.map(c => `<button type="button" class="cat" aria-pressed="${activeCat === c}" data-c="${esc(c)}">${esc(c)}</button>`)).join('');
 }
 catsEl.addEventListener('click', ev => { const b = ev.target.closest('button[data-c]'); if (!b) return; activeCat = b.dataset.c || null; lsSet('cat', activeCat || ''); renderCats(); renderList(); });
 
@@ -112,9 +112,9 @@ function renderEntry(e){
   const fc = featColor(e.f), sw = swatch(e);
   const back = [...(BACK[e.id] || [])].map(id => BY[id]).filter(Boolean).sort((a,b) => a.c.localeCompare(b.c) || a.n.localeCompare(b.n, undefined, {numeric: true}));
   pageEl.innerHTML = `
-    <button type="button" class="back-btn" id="toList">← Índice</button>
+    <button type="button" class="back-btn" id="toList">← Index</button>
     <div class="crumbs"><span class="tag">${esc(e.c)}</span>${FEAT_NAMES[e.f] ? `<a class="tag f" style="background:${fc}" href="#feat~${esc(e.f)}">${esc(FEAT_NAMES[e.f])}</a>` : ''}</div>
-    <h2>${sw ? `<span class="swatch" style="background:${sw}" title="cor no jogo: ${esc(e.col)}"></span>` : ''}${esc(e.n)}</h2>
+    <h2>${sw ? `<span class="swatch" style="background:${sw}" title="color in the game: ${esc(e.col)}"></span>` : ''}${esc(e.n)}</h2>
     <div class="key">internal id: <button type="button" id="copyKey" title="Copy">${esc(e.k)}</button>${e.nui ? ' · descriptive name (the game shows no name for this)' : ''}</div>
     ${e.c === 'Feature' && BY['guide:' + e.k] ? `<div class="banner guide">📘 New here? <a class="x" href="#${tok('guide:' + e.k)}">Read the ${esc(e.n)} guide</a>: the loop, what limits you, what to prioritize and what the helpers measured.</div>` : ''}
     ${(g => g ? `<div class="banner guide">📘 Part of the <b>${esc(g.n)}</b> event. <a class="x" href="#${tok(g.id)}">Read the event guide</a>: what it is, what you'll see, the goal, strategy, bottlenecks and the shop.</div>` : '')(guideFor(e))}
@@ -128,23 +128,21 @@ function renderEntry(e){
 // → How it's calculated → Gain affected by → Capacity affected by → Calculators → Groups → Appears in.
 // The data keeps its original headings (calc.js reads them); here they are mapped to the canonical order and merged.
 const SEC_SLOT = {
-  'O que é': [1, null], 'What it is': [1, null], 'O que mede': [1, 'What it measures'],
-  'De onde vem': [2, 'Source'], 'Como destrava': [2, 'Unlock'], 'When to prestige': [8, null], 'Destrava': [2, 'Unlock'], 'Custo': [2, 'Cost'], 'How to get it': [2, null],
-  'Efeitos': [3, 'Effects'], 'What it does': [3, null], 'Efeito quando equipada': [3, 'When equipped'], 'Usada para comprar': [3, 'Used to buy'],
-  'O que este unlock libera': [3, 'What it unlocks'], 'Níveis': [3, 'Levels'], 'Efeitos por nível': [3, 'Per level'], 'Efeito por cópia': [3, 'Per copy'],
-  'Atributos (nível 1)': [3, 'Stats (level 1)'], 'Atributos base': [3, 'Base stats'], 'Habilidades': [3, 'Skills'], 'Produz por trabalhador': [3, 'Per worker'],
-  'Drops raros': [3, 'Rare drops'], 'Boss final': [3, 'Final boss'], 'Recompensas por andar': [3, 'Floor rewards'], 'Conteúdo': [3, 'Contents'], 'Questlines': [3, 'Questlines'],
-  'Estágios': [3, 'Stages'], 'Milestones (cada um = +1 GL)': [3, 'Milestones (each = +1 GL)'], 'Subfeatures': [3, 'Subfeatures'], 'Ao repetir': [3, 'Extra copies'],
-  'Glyphs no Museum': [3, 'Glyphs in the Museum'], 'Cartas': [2, 'Cards needed'], 'O que mede': [1, 'What it measures'],
-  'Bônus ao completar': [3, 'On completion'], 'Efeito especial': [3, 'Special effect'], 'Habilidade ativa': [3, 'Active ability'], 'Bônus de cards': [3, 'Card bonus'],
-  'Como é calculado': [5, null], "How it's calculated": [5, null], 'Fórmula': [5, 'Formula'],
-  'Afetado por': [6, null], 'Gain affected by': [6, null], 'Capacity affected by': [7, null],
-  'Groups': [9, null], 'Grupos': [9, null], 'Grupo': [9, null], 'Mencionado por': [10, null],
+  'What it is': [1, null], 'What it measures': [1, 'What it measures'],
+  'Where it comes from': [2, 'Where it comes from'], 'How it unlocks': [2, 'How it unlocks'], 'Cost': [2, 'Cost'], 'How to get it': [2, null], 'Cards needed': [2, 'Cards needed'],
+  'What it does': [3, null], 'Effects': [3, 'Effects'], 'When equipped': [3, 'When equipped'], 'Used to buy': [3, 'Used to buy'], 'What it unlocks': [3, 'What it unlocks'],
+  'Levels': [3, 'Levels'], 'Effects per level': [3, 'Effects per level'], 'Effect per copy': [3, 'Effect per copy'], 'Stats (level 1)': [3, 'Stats (level 1)'], 'Base stats': [3, 'Base stats'],
+  'Skills': [3, 'Skills'], 'Made per worker': [3, 'Made per worker'], 'Rare drops': [3, 'Rare drops'], 'Final boss': [3, 'Final boss'], 'Floor rewards': [3, 'Floor rewards'], 'Contents': [3, 'Contents'],
+  'Questlines': [3, 'Questlines'], 'Stages': [3, 'Stages'], 'Milestones (+1 GL each)': [3, 'Milestones (+1 GL each)'], 'Subfeatures': [3, 'Subfeatures'], 'Extra copies': [3, 'Extra copies'],
+  'Glyphs in the Museum': [3, 'Glyphs in the Museum'], 'Completion bonus': [3, 'Completion bonus'], 'Special effect': [3, 'Special effect'], 'Active ability': [3, 'Active ability'], 'Card bonuses': [3, 'Card bonuses'],
+  'When to prestige': [8, null], "How it's calculated": [5, null], 'Formula': [5, 'Formula'],
+  'Affected by': [6, null], 'Gain affected by': [6, null], 'Capacity affected by': [7, null],
+  'Groups': [9, null], 'Group': [9, null], 'Mentioned by': [10, null],
 };
 const SEC_TITLE = { 8: 'When to prestige', 10: 'Appears in', 1: 'What it is', 2: 'How to get it', 3: 'What it does', 5: "How it's calculated", 6: 'Gain affected by', 7: 'Capacity affected by', 9: 'Groups' };
-const slotOf = h => SEC_SLOT[h] || (/^Efeitos \(nível/.test(h) ? [3, h.replace('Efeitos (nível', 'Effects (level')] : [4, null]);
+const slotOf = h => SEC_SLOT[h] || (/^Effects \(level/.test(h) ? [3, h] : [4, null]);
 function appearsHTML(e, back){
-  const men = e.s.filter(s => s.h === 'Mencionado por').flatMap(s => s.b);
+  const men = e.s.filter(s => s.h === 'Mentioned by').flatMap(s => s.b);
   if (!back.length && !men.length) return '';
   const n = back.length;
   return `<details class="back"${n <= 12 ? ' open' : ''}><summary>Appears in${n ? ` ${n} entr${n > 1 ? 'ies' : 'y'}` : ''}</summary>${men.length ? `<ul class="men">${men.map(x => `<li>${rich(x)}</li>`).join('')}</ul>` : ''}${n ? `<ul>${back.slice(0, 300).map(b => `<li><a class="x" href="#${tok(b.id)}">${esc(b.n)}</a> <span class="key">${esc(b.c)}</span></li>`).join('')}</ul>` : ''}</details>`;
@@ -167,32 +165,32 @@ function sectionsHTML(e){
   if (e.c === 'Prestige') return merged(1) + labHTML(e) + merged(2) + merged(3) + merged(8) + merged(5) + other + merged(6) + merged(7) + merged(9);
   return merged(1) + merged(2) + merged(3) + other + merged(5) + merged(8) + merged(6) + merged(7) + labHTML(e) + merged(9);
 }
-function labHTML(e){ try { return LAB.forEntry(e); } catch (err) { console.warn('[Codex]', err); return `<p class="hint">Calculadora indisponível para este verbete (${esc(err.message)}).</p>`; } }
+function labHTML(e){ try { return LAB.forEntry(e); } catch (err) { console.warn('[Codex]', err); return `<p class="hint">No calculator for this entry (${esc(err.message)}).</p>`; } }
 function rerenderCurrent(){ if (!currentId) return; const y = mainEl.scrollTop; renderEntry(BY[currentId]); mainEl.scrollTop = y; }
 function renderHome(){
   const counts = {}; DATA.forEach(e => counts[e.c] = (counts[e.c] || 0) + 1);
   const starts = ['concept:tick','concept:gl','concept:prestige','concept:events','concept:mult','concept:overcap','concept:dweller','concept:cards','concept:general','concept:cryolab','feat:mining','feat:village','feat:horde','feat:farm','feat:gallery'].filter(id => BY[id]);
   const info = LAB.info();
   pageEl.innerHTML = `<div class="home">
-    <button type="button" class="back-btn" id="toList">← Índice</button>
+    <button type="button" class="back-btn" id="toList">← Index</button>
     <h2>Gooboo Codex</h2>
-    <p>Todos os termos do jogo com o nome que aparece na interface: o que é, de onde vem, como destrava e o que afeta o valor. Clique em qualquer nome sublinhado para navegar.</p>
-    ${LAB.ok ? `<div class="banner">${info && info.live ? `Lendo <b>o seu jogo ao vivo</b> (GL ${info.gl}). Toda moeda, estatística e upgrade tem uma calculadora; as features têm o planejador de run. O Codex só lê o jogo, nunca altera nada.` : 'Jogo não encontrado.'}</div>` : ''}
+    <p>Every term in the game, named as the game shows it: what it is, where it comes from, how it unlocks and what changes its value. Click any underlined name to go there.</p>
+    ${LAB.ok ? `<div class="banner">${info && info.live ? `Reading <b>your live game</b> (GL ${info.gl}). Every currency, stat and upgrade has a calculator; features have the run planner. The Codex only reads your game and never changes anything.` : 'Game not found.'}</div>` : ''}
     <div class="chips"><a href="#guides" title="Beginner guides: every feature, every event and the core concepts">📘 Guides</a><a href="#concept~prestige" title="One page per prestige: formula, what resets and what stays, your live gain and when to prestige">⟳ Prestige</a><a href="#concept~cryolab" title="Cryo lab: what freezing pays, days to each level and where it gives the most Global level">❄ Cryo lab</a><a href="#guides" data-events="1" title="Event guides: Cinders, Bloom, Weather chaos, Summer festival, Night hunt, Snowdown, Merchant, Casino, Bank">🎪 Events</a></div>
-    <div class="start" style="margin-top:14px"><a href="#missing">O que falta em cada feature (notes, unlocks, upgrades, cards…)</a></div>
-    <h3 style="font:800 20px var(--f-display);margin:20px 0 6px">Planejar a próxima run</h3>
+    <div class="start" style="margin-top:14px"><a href="#missing">What's missing in each feature (notes, unlocks, upgrades, cards…)</a></div>
+    <h3 style="font:800 20px var(--f-display);margin:20px 0 6px">Plan the next run</h3>
     <div class="start">${['mining','village','horde','farm','gallery'].map(f => `<a href="#feat~${f}">${esc(FEAT_NAMES[f] || f)}</a>`).join('')}</div>
-    <h3 style="font:800 20px var(--f-display);margin:20px 0 6px">Comece por</h3>
+    <h3 style="font:800 20px var(--f-display);margin:20px 0 6px">Start with</h3>
     <div class="start">${starts.map(id => `<a href="#${tok(id)}">${esc(BY[id].n)}</a>`).join('')}</div>
-    <div class="grid">${cats.map(c => `<button type="button" class="tile" data-c="${esc(c)}"><b>${esc(c)}</b><span>${counts[c]} verbetes</span></button>`).join('')}</div></div>`;
+    <div class="grid">${cats.map(c => `<button type="button" class="tile" data-c="${esc(c)}"><b>${esc(c)}</b><span>${counts[c]} entries</span></button>`).join('')}</div></div>`;
   pageEl.querySelectorAll('.tile').forEach(b => b.onclick = () => { activeCat = b.dataset.c; renderCats(); renderList(); qEl.focus(); appEl.classList.remove('reading'); });
   $('toList').onclick = () => appEl.classList.remove('reading');
 }
 function renderGuides(){
   const first = e => { const s = e.s.find(x => /^(O que é|What it is)/.test(x.h)) || e.s[0]; return s ? plain(s.b[0] || '').slice(0, 140) : ''; };
   const tile = e => `<a class="tile" href="#${tok(e.id)}"><b>${esc(e.n)}</b><span>${esc(first(e))}${first(e).length >= 140 ? '…' : ''}</span></a>`;
-  const evs = DATA.filter(e => e.c === 'Event'), cons = DATA.filter(e => e.c === 'Conceito').sort((a, b) => a.n.localeCompare(b.n));
-  pageEl.innerHTML = `<div class="guides"><button type="button" class="back-btn" id="toList">← Índice</button>
+  const evs = DATA.filter(e => e.c === 'Event'), cons = DATA.filter(e => e.c === 'Concept').sort((a, b) => a.n.localeCompare(b.n));
+  pageEl.innerHTML = `<div class="guides"><button type="button" class="back-btn" id="toList">← Index</button>
     <div class="crumbs"><span class="tag">Tool</span></div><h2>Guides</h2>
     <p class="hint">Start here. Feature guides explain each feature's loop, what limits you and what to prioritize; event guides explain each event from zero (what it is, what you'll see, goal, strategy, bottlenecks, shop, reset); concept guides explain the systems every feature shares. Names as the game shows them.</p>
     <h3>🗺 Features</h3><div class="grid">${DATA.filter(e => e.c === 'Guide').map(tile).join('')}${BY['concept:cryolab'] ? tile(BY['concept:cryolab']) : ''}</div>
@@ -203,7 +201,7 @@ function renderGuides(){
 let missTab = lsGet('miss') || 'resumo';
 function renderMissing(){
   const prevQ = $('missq')?.value || '';
-  pageEl.innerHTML = '<button type="button" class="back-btn" id="toList">← Índice</button>' + LAB.missingPage(missTab);
+  pageEl.innerHTML = '<button type="button" class="back-btn" id="toList">← Index</button>' + LAB.missingPage(missTab);
   $('toList').onclick = () => appEl.classList.remove('reading');
   pageEl.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { missTab = b.dataset.tab; renderMissing(); });
   pageEl.querySelectorAll('[data-goto]').forEach(a => a.onclick = ev => { ev.preventDefault(); missTab = a.dataset.goto; renderMissing(); mainEl.scrollTop = 0; });
@@ -254,7 +252,7 @@ appEl.addEventListener('keydown', ev => { if (ev.key === 'Escape' && env.onClose
 const liveDot = $('liveDot'), liveTxt = $('liveTxt');
 function refreshStatus(){
   const i = LAB.info();
-  if (!LAB.ok || !i) { liveTxt.textContent = 'Jogo não encontrado'; liveDot.classList.remove('on'); return; }
+  if (!LAB.ok || !i) { liveTxt.textContent = 'Game not found'; liveDot.classList.remove('on'); return; }
   liveTxt.textContent = `Ao vivo · GL ${i.gl}`; liveDot.classList.add('on');
 }
 // Atualiza a página com os valores atuais do jogo. Não atualiza se você estiver editando uma calculadora.

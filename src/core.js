@@ -22,7 +22,7 @@
     core.fmtTime = secs => {
       if (secs === null || secs === undefined || Number.isNaN(secs)) return '?';
       if (!isFinite(secs)) return '∞';
-      if (secs <= 0) return 'agora';
+      if (secs <= 0) return 'now';
       secs = Math.round(secs);
       const d = Math.floor(secs / 86400), h = Math.floor((secs % 86400) / 3600),
         m = Math.floor((secs % 3600) / 60), s = secs % 60;

@@ -60,6 +60,7 @@ node enrich.js           # moedas/gemas EN-first: How to get it / What it does, 
 node fill.js            # lote 2: How to get it / What it does nas outras categorias (EN), stats sem efeito, páginas Prestige
 node guides.js           # guias de evento (EN) e o conceito Tick
 node featguides.js       # lote 3: guias por feature (categoria Guide) e a página do Cryo lab (EN)
+node english.js         # último passo: títulos de seção e categorias em inglês (Plain English)
 cd ../gooboo-codex && node tools/build.js ../gbx
 ```
 

@@ -29,17 +29,17 @@ const LAB = (() => {
   };
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const link = (id, label) => BY[id] ? `<a class="x" href="#${tok(id)}">${esc(label ?? BY[id].n)}</a>` : esc(label ?? id);
-  const curLink = (k) => k === 'farm_exp' ? 'exp de crops' : link('cur:' + k, BY['cur:' + k]?.n ?? k);
+  const curLink = (k) => k === 'farm_exp' ? 'crop exp' : link('cur:' + k, BY['cur:' + k]?.n ?? k);
   const num = (id, v, step = 'any', attrs = '') => `<input class="ni" type="number" id="${id}" value="${v}" step="${step}" ${attrs}>`;
 
   // ---------- multiplier engine ----------
   const KEYMAP = [
     [/^upgrade_(.+)$/, m => 'upg:' + m[1]], [/^relicGlyph_(.+)$/, m => 'glyph:' + m[1]], [/^relic_(.+)$/, m => 'relic:' + m[1]],
     [/^cardCollection_(.+)$/, m => 'col:' + m[1]], [/^cardPower_(.+)$/, m => ['feat:' + m[1], 'Card power']], [/^cardsShiny_(.+)$/, m => ['feat:' + m[1], 'Shiny cards']],
-    [/^cards_(.+)$/, m => ['feat:' + m[1], 'Coleção de cards']], [/^card_(.+)$/, m => 'card:' + m[1]], [/^schoolBook_(.+)$/, m => 'book:' + m[1]],
+    [/^cards_(.+)$/, m => ['feat:' + m[1], 'Card collection']], [/^card_(.+)$/, m => 'card:' + m[1]], [/^schoolBook_(.+)$/, m => 'book:' + m[1]],
     [/^villageMilestone_(.+?)_(\d+)$/, m => ['craft:' + m[1], 'milestone ' + m[2]]], [/^villageSpecialCraft_(.+)$/, m => 'craft:' + m[1]], [/^villageJob_(.+)$/, m => 'job:' + m[1]],
     [/^villagePolicy_(.+)$/, m => 'policy:' + m[1]], [/^miningEnhancement_(.+)$/, m => 'enh:' + m[1]], [/^miningBeacon_(.+)$/, m => 'beacon:' + m[1]],
-    [/^hordeHeirloom_(.+)$/, m => 'heir:' + m[1]], [/^hordeTower_(.+?)_(\d+)$/, m => ['tower:' + m[1], 'andar ' + m[2]]], [/^hordeBattlePass/, () => 'concept:battlepass'],
+    [/^hordeHeirloom_(.+)$/, m => 'heir:' + m[1]], [/^hordeTower_(.+?)_(\d+)$/, m => ['tower:' + m[1], 'floor ' + m[2]]], [/^hordeBattlePass/, () => 'concept:battlepass'],
     [/^galleryIdea_(.+)$/, m => 'idea:' + m[1]], [/^cryolab_(.+)$/, () => 'concept:cryolab'], [/^farmSpecialCrop_(.+)$/, m => 'crop:' + m[1]], [/^trinket_(.+)$/, m => 'trinket:' + m[1]],
     [/^hordeEquipment_(.+)$/, m => 'equip:' + m[1]], [/^achievementReward_(.+)$/, m => 'ach:' + m[1]], [/^schoolSubject_(.+)$/, m => 'subject:' + m[1]], [/^globalLevel$/, () => 'concept:gl'],
   ];
@@ -102,13 +102,13 @@ const LAB = (() => {
     }
     sugg.sort((a, b) => b.r - a.r);
     const changed = Object.keys(ov).length > 0;
-    const formula = now.pureMult ? `multiplicador total ${mulx(sim.mult)}` : `(${fmt(sim.base)}) × ${fmt(sim.mult, 3)} + ${fmt(sim.bonus)}`;
+    const formula = now.pureMult ? `total multiplier ${mulx(sim.mult)}` : `(${fmt(sim.base)}) × ${fmt(sim.mult, 3)} + ${fmt(sim.bonus)}`;
     return `<section class="lab" data-mult="${esc(name)}">
-      <h3>Calculadora · ${esc(title || BY['mult:' + name]?.n || name)}</h3>
-      <div class="kpis"><div><small>Valor atual</small><b>${fmt(now.val)}</b></div>${changed ? `<div class="sim"><small>Simulado</small><b>${fmt(sim.val)}</b><span>${pct(sim.val / (now.val || 1))}</span></div>` : ''}<div><small>Fórmula</small><span class="num">${formula}</span></div>${!sim.pureMult && sim.mult ? `<div><small>Valor de +1 na base</small><b>${pct(total(it, { ...overlay, __probe: { type: 'base', value: 1 } }).val / (sim.val || 1))}</b><span>um ×1.10 vale +10%</span></div>` : ''}</div>
-      ${sugg.length ? `<h4>Próximo nível que mais aumenta este valor</h4><div class="tbl"><table><thead><tr><th>Upgrade</th><th>Nível</th><th>+1 nível</th><th>Custo do próximo</th><th></th></tr></thead><tbody>${sugg.slice(0, 12).map(s => `<tr class="${s.req ? '' : 'dim'}"><td>${link('upg:' + s.k)}${s.req ? '' : ' <span class="key">(ainda bloqueado)</span>'}</td><td class="num">${s.L}${s.u.cap !== null ? '/' + s.u.cap : ''}</td><td class="num ${s.r > 1.0001 ? 'up' : ''}">${pct(s.r)}</td><td class="num">${Object.entries(s.price).map(([c, v]) => fmt(v) + ' ' + curLink(c)).join(' + ')}</td><td class="nowrap"><button type="button" class="st" data-up="${esc(s.k)}" data-d="-1" aria-label="menos">−</button><button type="button" class="st" data-up="${esc(s.k)}" data-d="1" aria-label="mais">+</button></td></tr>`).join('')}</tbody></table></div>` : ''}
-      ${rows.length ? `<h4>De onde vem o valor (${rows.length} fontes)</h4><div class="tbl"><table><thead><tr><th>Fonte</th><th>Tipo</th><th>Valor</th><th>Peso no total</th></tr></thead><tbody>${rows.map(r => `<tr><td>${srcLabel(r.key).html}</td><td>${r.type}</td><td class="num">${r.type === 'mult' ? mulx(r.value) : (r.value >= 0 ? '+' : '') + fmt(r.value)}</td><td class="num">${r.imp ? mulx(r.imp) : '—'}</td></tr>`).join('')}</tbody></table></div><p class="hint">"Peso no total" = quanto o valor final cairia sem essa fonte (×2 = metade sem ela). Use os botões − / + para simular níveis; nada é alterado no seu jogo.</p>` : `<p class="hint">Nenhuma fonte ativa${saveInfo ? '' : ' no jogo novo de exemplo — carregue seu save'}.</p>`}
-      ${changed ? `<button type="button" class="reset" data-reset="${esc(name)}">Desfazer simulação</button>` : ''}
+      <h3>Calculator · ${esc(title || BY['mult:' + name]?.n || name)}</h3>
+      <div class="kpis"><div><small>Value now</small><b>${fmt(now.val)}</b></div>${changed ? `<div class="sim"><small>Simulated</small><b>${fmt(sim.val)}</b><span>${pct(sim.val / (now.val || 1))}</span></div>` : ''}<div><small>Formula</small><span class="num">${formula}</span></div>${!sim.pureMult && sim.mult ? `<div><small>Value of +1 base</small><b>${pct(total(it, { ...overlay, __probe: { type: 'base', value: 1 } }).val / (sim.val || 1))}</b><span>um ×1.10 vale +10%</span></div>` : ''}</div>
+      ${sugg.length ? `<h4>Next level that raises this value the most</h4><div class="tbl"><table><thead><tr><th>Upgrade</th><th>Level</th><th>+1 level</th><th>Next level cost</th><th></th></tr></thead><tbody>${sugg.slice(0, 12).map(s => `<tr class="${s.req ? '' : 'dim'}"><td>${link('upg:' + s.k)}${s.req ? '' : ' <span class="key">(still locked)</span>'}</td><td class="num">${s.L}${s.u.cap !== null ? '/' + s.u.cap : ''}</td><td class="num ${s.r > 1.0001 ? 'up' : ''}">${pct(s.r)}</td><td class="num">${Object.entries(s.price).map(([c, v]) => fmt(v) + ' ' + curLink(c)).join(' + ')}</td><td class="nowrap"><button type="button" class="st" data-up="${esc(s.k)}" data-d="-1" aria-label="less">−</button><button type="button" class="st" data-up="${esc(s.k)}" data-d="1" aria-label="more">+</button></td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${rows.length ? `<h4>Where the value comes from (${rows.length} sources)</h4><div class="tbl"><table><thead><tr><th>Source</th><th>Type</th><th>Value</th><th>Share of the total</th></tr></thead><tbody>${rows.map(r => `<tr><td>${srcLabel(r.key).html}</td><td>${r.type}</td><td class="num">${r.type === 'mult' ? mulx(r.value) : (r.value >= 0 ? '+' : '') + fmt(r.value)}</td><td class="num">${r.imp ? mulx(r.imp) : '—'}</td></tr>`).join('')}</tbody></table></div><p class="hint">"Share of the total" = how much the final value would drop without this source (×2 = half without it). Use the − / + buttons to try other levels; nothing changes in your game.</p>` : `<p class="hint">No active source${saveInfo ? '' : ' in a fresh example game — load your save'}.</p>`}
+      ${changed ? `<button type="button" class="reset" data-reset="${esc(name)}">Undo the simulation</button>` : ''}
     </section>`;
   }
   function bindMult(root, rerender) {
@@ -133,12 +133,12 @@ const LAB = (() => {
       const tgtId = (BY['mult:' + e.name] ? 'mult:' + e.name : null);
       return `<tr><td>${tgtId ? link(tgtId) : esc(BY['mult:' + e.name]?.n || e.name)}</td><td class="num">${e.type === 'mult' ? mulx(a) : fmt(a)}</td><td class="num">${e.type === 'mult' ? mulx(b) : fmt(b)}</td><td class="num ${r > 1.0001 ? 'up' : ''}">${r ? pct(r) : '—'}</td></tr>`;
     });
-    const have = Object.entries(cost).map(([c, v]) => { const cu = S.currency[c]; const val = cu ? cu.value : 0; return `<li>${fmt(v)} ${curLink(c)} — você tem ${fmt(val)}${cu && cu.cap ? ` (cap ${fmt(cu.cap)})` : ''}${val >= v ? ' <b class="up">✓ dá para pagar</b>' : ` · faltam ${fmt(v - val)}`}</li>`; });
+    const have = Object.entries(cost).map(([c, v]) => { const cu = S.currency[c]; const val = cu ? cu.value : 0; return `<li>${fmt(v)} ${curLink(c)} — you have ${fmt(val)}${cu && cu.cap ? ` (cap ${fmt(cu.cap)})` : ''}${val >= v ? ' <b class="up">✓ you can pay</b>' : ` · you need ${fmt(v - val)}`}</li>`; });
     return `<section class="lab" data-up="${esc(k)}">
-      <h3>Calculadora · comprar níveis</h3>
-      <div class="kpis"><div><small>Nível atual</small><b>${cur}${u.cap !== null ? ' / ' + u.cap : ''}</b></div><div><small>Simular até o nível</small>${num('lvl-' + k, tgt, 1, `min="0" ${u.cap !== null ? `max="${u.cap}"` : ''}`)}</div></div>
-      ${have.length ? `<h4>Custo total até o nível ${tgt}</h4><ul class="plain">${have.join('')}</ul>` : ''}
-      ${effRows.length ? `<h4>Efeito no valor final</h4><div class="tbl"><table><thead><tr><th>Valor</th><th>Agora</th><th>No nível ${tgt}</th><th>Mudança no total</th></tr></thead><tbody>${effRows.join('')}</tbody></table></div>` : ''}
+      <h3>Calculator · buying levels</h3>
+      <div class="kpis"><div><small>Current level</small><b>${cur}${u.cap !== null ? ' / ' + u.cap : ''}</b></div><div><small>Try up to level</small>${num('lvl-' + k, tgt, 1, `min="0" ${u.cap !== null ? `max="${u.cap}"` : ''}`)}</div></div>
+      ${have.length ? `<h4>Total cost up to level ${tgt}</h4><ul class="plain">${have.join('')}</ul>` : ''}
+      ${effRows.length ? `<h4>Effect on the final value</h4><div class="tbl"><table><thead><tr><th>Value</th><th>Now</th><th>At level ${tgt}</th><th>Change in total</th></tr></thead><tbody>${effRows.join('')}</tbody></table></div>` : ''}
     </section>`;
   }
   function bindUp(root, rerender) {
@@ -165,16 +165,16 @@ const LAB = (() => {
     const x = Math.log(Math.max(s.B, 1e12) / 1e11) / Math.log(8);
     const el = 0.7 / (Math.log10(8) * Math.pow(x, 0.3));
     const avg = c0 / s.T, marg = c1 - c0;
-    return `<section class="lab" data-f="cash"><h3>Calculadora · Cash do prestige</h3>
-      <div class="fields">${field('cash-B', 'Beauty ganha nesta run', s.B)}${field('cash-M', 'Cash gain (multiplicador)', s.M)}${field('cash-T', 'Horas de run até agora', s.T)}${field('cash-B1', 'Beauty daqui a 1h (padrão: ganho atual/s × 3600)', s.B1)}</div>
-      <div class="kpis"><div><small>Cash se prestigiar agora</small><b>${fmt(c0)}</b></div><div><small>Cash/hora médio da run</small><b>${fmt(avg)}</b></div><div><small>Cash extra na próxima 1h</small><b class="${marg > avg ? 'up' : 'down'}">${fmt(marg)}</b></div></div>
-      <p class="verdict ${marg > avg ? 'up' : 'down'}">${s.B < 1e12 ? 'Ainda abaixo de 1e12 beauty: prestige não dá cash.' : marg > avg ? 'Continuar: a próxima hora rende mais que a média da run.' : 'Prestigiar: a próxima hora rende menos que a média da run.'}</p>
+    return `<section class="lab" data-f="cash"><h3>Calculator · prestige Cash</h3>
+      <div class="fields">${field('cash-B', 'Beauty gained this run', s.B)}${field('cash-M', 'Cash gain (multiplier)', s.M)}${field('cash-T', 'Hours of run so far', s.T)}${field('cash-B1', 'Beauty 1 h from now (default: current gain/s × 3600)', s.B1)}</div>
+      <div class="kpis"><div><small>Cash if you prestige now</small><b>${fmt(c0)}</b></div><div><small>Average cash per hour this run</small><b>${fmt(avg)}</b></div><div><small>Extra cash in the next hour</small><b class="${marg > avg ? 'up' : 'down'}">${fmt(marg)}</b></div></div>
+      <p class="verdict ${marg > avg ? 'up' : 'down'}">${s.B < 1e12 ? 'Still under 1e12 beauty: a prestige gives no cash yet.' : marg > avg ? 'Keep going: the next hour pays more than this run\'s average.' : 'Prestige: the next hour pays less than this run\'s average.'}</p>
       ${advice([
-        ['Como o cálculo funciona', `cash = 10^(log₈(beauty ÷ 1e11)^0.7) × Cash gain. A beauty usada é a <b>ganha na run</b> (gastar beauty não reduz o cash).`],
-        ['Onde intervir', `Agora, dobrar a beauty dá só ${mulx(Math.pow(2, el))} de cash (elasticidade ${fmt(el, 3)}), e essa elasticidade cai a cada run. Dobrar o <b>Cash gain</b> dá ×2. Então: priorize tudo que multiplica Cash gain (${link('idea:advertise')}, ${link('mult:allPrestigeIncome')}, shiny cards de Gallery, ${link('concept:cryolab')}) e use beauty só para chegar rápido à faixa útil.`],
-        ['Run para cash', `Runs curtas e frequentes. Compre o que acelera beauty no começo, e prestigie quando "cash extra na próxima 1h" ficar abaixo do "cash/hora médio". Selecione as cards antes.`],
+        ['How it works', `cash = 10^(log₈(beauty ÷ 1e11)^0.7) × Cash gain. It uses the beauty <b>gained this run</b> (spending beauty does not lower your cash).`],
+        ['What to change', `Right now, doubling beauty only gives ${mulx(Math.pow(2, el))} cash (elasticity ${fmt(el, 3)}), and this gets smaller every run. Doubling <b>Cash gain</b> gives ×2. So put first anything that multiplies Cash gain (${link('idea:advertise')}, ${link('mult:allPrestigeIncome')}, Gallery shiny cards, ${link('concept:cryolab')}) and use beauty only to reach the useful range quickly.`],
+        ['A run for cash', `Short, frequent runs. Buy what speeds up beauty early on, and prestige when "extra cash in the next hour" drops below the "average cash per hour". Select your cards first.`],
       ])}
-      <div class="tbl"><table><thead><tr><th>Beauty</th><th>Cash</th><th>vs agora</th></tr></thead><tbody>${[1, 2, 10, 100, 1e3, 1e6].map(k => { const c = Math.floor(cashBase(s.B * k) * s.M); return `<tr><td class="num">${fmt(s.B * k)}</td><td class="num">${fmt(c)}</td><td class="num">${c0 ? mulx(c / c0) : '—'}</td></tr>`; }).join('')}</tbody></table></div></section>`;
+      <div class="tbl"><table><thead><tr><th>Beauty</th><th>Cash</th><th>vs now</th></tr></thead><tbody>${[1, 2, 10, 100, 1e3, 1e6].map(k => { const c = Math.floor(cashBase(s.B * k) * s.M); return `<tr><td class="num">${fmt(s.B * k)}</td><td class="num">${fmt(c)}</td><td class="num">${c0 ? mulx(c / c0) : '—'}</td></tr>`; }).join('')}</tbody></table></div></section>`;
   };
   F.cash.bind = (r) => { const s = formState.cash; ['B', 'M', 'T', 'B1'].forEach(k => { s[k] = read(r, 'cash-' + k); }); };
 
@@ -196,14 +196,14 @@ const LAB = (() => {
     const pts = [0, 0.5, 1, 2, 4, 8, 12, 24, 48].map(h => { const x = at(h * 3600); const g = gainAt(x); return { h, x, g, rate: g / Math.max(s.T + h, 0.01) }; });
     const best = pts.reduce((a, b) => b.rate > a.rate ? b : a);
     const meter = dwellGain(Math.floor(L * 2)) ? dwellGain(Math.floor(L * 2) + 2) / dwellGain(Math.floor(L * 2)) : 1;
-    return `<section class="lab" data-f="dw${sub}"><h3>Calculadora · Depth dweller e cristais (${sub ? 'Gas giant' : 'Ore mine'})</h3>
-      <div class="fields">${field(`dw${sub}-D`, 'Profundidade máx. desta run', s.D, 1)}${field(`dw${sub}-P`, 'Maximum dweller depth (fração)', s.P)}${field(`dw${sub}-V`, 'Dweller speed', s.V)}${field(`dw${sub}-X`, 'Dweller atual (m)', s.X)}${field(`dw${sub}-T`, 'Horas de run até agora', s.T)}${field(`dw${sub}-M`, 'Crystal gain (mult.)', s.M)}</div>
-      <div class="kpis"><div><small>Limite do dweller</small><b>${fmt(L)} m</b></div><div><small>Cristais agora</small><b>${fmt(g0)}</b></div><div><small>Melhor ponto (cristais/h)</small><b>+${best.h}h</b><span>${fmt(best.rate)}/h</span></div></div>
-      <div class="tbl"><table><thead><tr><th>Esperar</th><th>Dweller</th><th>Cristais</th><th>Cristais/h da run</th></tr></thead><tbody>${pts.map(p => `<tr class="${p === best ? 'best' : ''}"><td>+${p.h}h</td><td class="num">${fmt(p.x)} m</td><td class="num">${fmt(p.g)}</td><td class="num">${fmt(p.rate)}</td></tr>`).join('')}</tbody></table></div>
+    return `<section class="lab" data-f="dw${sub}"><h3>Calculator · Depth dweller and crystals (${sub ? 'Gas giant' : 'Ore mine'})</h3>
+      <div class="fields">${field(`dw${sub}-D`, 'Highest depth this run', s.D, 1)}${field(`dw${sub}-P`, 'Maximum dweller depth (fraction)', s.P)}${field(`dw${sub}-V`, 'Dweller speed', s.V)}${field(`dw${sub}-X`, 'Dweller now (m)', s.X)}${field(`dw${sub}-T`, 'Hours of run so far', s.T)}${field(`dw${sub}-M`, 'Crystal gain (mult.)', s.M)}</div>
+      <div class="kpis"><div><small>Dweller limit</small><b>${fmt(L)} m</b></div><div><small>Crystals now</small><b>${fmt(g0)}</b></div><div><small>Best moment (crystals/h)</small><b>+${best.h}h</b><span>${fmt(best.rate)}/h</span></div></div>
+      <div class="tbl"><table><thead><tr><th>Esperar</th><th>Dweller</th><th>Cristais</th><th>Crystals per hour this run</th></tr></thead><tbody>${pts.map(p => `<tr class="${p === best ? 'best' : ''}"><td>+${p.h}h</td><td class="num">${fmt(p.x)} m</td><td class="num">${fmt(p.g)}</td><td class="num">${fmt(p.rate)}</td></tr>`).join('')}</tbody></table></div>
       ${advice([
-        ['Como o cálculo funciona', `Limite = profundidade máx. da run × Maximum dweller depth. O dweller se aproxima do limite cada vez mais devagar. Cristais = 7·s·1.15^(s/2) × Crystal gain, com s = 2 × metros do dweller.`],
-        ['Onde intervir', `Cada metro a mais de dweller vale ${mulx(meter)} nos cristais. Com ${fmt(s.P * 100)}% de máximo, cada ${fmt(1 / s.P)} de profundidade da run = +1 m de limite. Ou seja: <b>empurrar a profundidade antes de deixar o dweller correr</b> rende muito mais do que esperar. Upgrades de Maximum dweller depth são exponenciais para você; Dweller speed só encurta o tempo.`],
-        ['Run para cristais', `1) Desça o máximo possível (até cada camada levar minutos). 2) Compre Depth Dweller. 3) Espere até a linha destacada (melhor cristais/h). 4) Selecione cards e prestigie.`],
+        ['How it works', `Limit = highest depth this run × Maximum dweller depth. The dweller gets closer to the limit more and more slowly. Crystals = 7·s·1.15^(s/2) × Crystal gain, where s = 2 × dweller metres.`],
+        ['What to change', `Each extra dweller metre is worth ${mulx(meter)} in crystals. With ${fmt(s.P * 100)}% as the maximum, every ${fmt(1 / s.P)} of run depth = +1 m of limit. So: <b>push your depth first, then let the dweller run</b> pays much more than waiting. Maximum dweller depth upgrades grow your crystals fast; Dweller speed only saves time.`],
+        ['A run for crystals', `1) Go as deep as you can (until each layer takes minutes). 2) Buy Depth Dweller. 3) Wait for the highlighted row (best crystals per hour). 4) Select cards and prestige.`],
       ])}</section>`;
   };
   F.dweller.bind = (r, sub = 0) => { const s = formState['dw' + sub]; ['D', 'P', 'V', 'X', 'T', 'M'].forEach(k => s[k] = read(r, `dw${sub}-${k}`)); };
@@ -220,13 +220,13 @@ const LAB = (() => {
     const after = faithAfter(s.F, s.g, s.C, s.H * 3600);
     const gUp = faithAfter(s.F, s.g * 1.5, s.C, s.H * 3600), cUp = faithAfter(s.F, s.g, s.C * 1.5, s.H * 3600);
     const avg = s.F / s.T, nextH = faithAfter(s.F, s.g, s.C, 3600) - s.F;
-    return `<section class="lab" data-f="faith"><h3>Calculadora · Faith → Blessing</h3>
-      <div class="fields">${field('faith-F', 'Faith atual', s.F)}${field('faith-C', 'Faith capacity', s.C)}${field('faith-g', 'Faith gain por segundo', s.g)}${field('faith-T', 'Horas de run até agora', s.T)}${field('faith-H', 'Simular por (horas)', s.H)}</div>
-      <div class="kpis"><div><small>Blessing se prestigiar agora</small><b>${fmt(s.F)}</b></div><div><small>Em ${fmt(s.H)}h</small><b>${fmt(after)}</b></div><div><small>Próxima 1h vs média</small><b class="${nextH > avg ? 'up' : 'down'}">${fmt(nextH)}</b><span>média ${fmt(avg)}/h</span></div></div>
+    return `<section class="lab" data-f="faith"><h3>Calculator · Faith → Blessing</h3>
+      <div class="fields">${field('faith-F', 'Faith now', s.F)}${field('faith-C', 'Faith capacity', s.C)}${field('faith-g', 'Faith gain per second', s.g)}${field('faith-T', 'Hours of run so far', s.T)}${field('faith-H', 'Try for (hours)', s.H)}</div>
+      <div class="kpis"><div><small>Blessing if you prestige now</small><b>${fmt(s.F)}</b></div><div><small>In ${fmt(s.H)} h</small><b>${fmt(after)}</b></div><div><small>Next hour vs average</small><b class="${nextH > avg ? 'up' : 'down'}">${fmt(nextH)}</b><span>média ${fmt(avg)}/h</span></div></div>
       ${advice([
-        ['Como o cálculo funciona', `Blessing = Faith que você tem. Acima do cap o ganho cai para ×0.9, depois ×0.81, ×0.73… a cada múltiplo do cap. Agora você está no estágio ${Math.floor(s.F / s.C)} (ganho efetivo ${mulx(Math.floor(s.F / s.C) ? 0.9 * Math.pow(0.9, Math.floor(s.F / s.C) - 1) : 1)}).`],
-        ['Onde intervir', `Nas próximas ${fmt(s.H)}h: +50% de <b>Faith gain</b> rende ${fmt(gUp)}; +50% de <b>Faith capacity</b> rende ${fmt(cUp)}. ${gUp >= cUp ? 'Agora vale mais aumentar o ganho' : 'Agora vale mais aumentar a capacidade'} (Church/Mosque/Lighthouse e a policy Religion dão ganho; Temple, Lost pages, Holy book e Worship dão cap).`],
-        ['Run para Blessing', `Construa a economia, suba a policy Religion no final (troca recursos por fé) e prestigie quando a próxima hora render menos que a média.`],
+        ['How it works', `Blessing = the Faith you hold. Above the cap, gain drops to ×0.9, then ×0.81, ×0.73… at each multiple of the cap. You are now at step ${Math.floor(s.F / s.C)} (real gain ${mulx(Math.floor(s.F / s.C) ? 0.9 * Math.pow(0.9, Math.floor(s.F / s.C) - 1) : 1)}).`],
+        ['What to change', `In the next ${fmt(s.H)} h: +50% <b>Faith gain</b> rende ${fmt(gUp)}; +50% de <b>Faith capacity</b> rende ${fmt(cUp)}. ${gUp >= cUp ? 'Right now, more gain is worth more' : 'Right now, more capacity is worth more'} (Church, Mosque, Lighthouse and the Religion policy give gain; Temple, Lost pages, Holy book and Worship give capacity).`],
+        ['A run for Blessing', `Build up your economy, raise the Religion policy near the end (it trades resources for faith), and prestige when the next hour pays less than the average.`],
       ])}</section>`;
   };
   F.faith.bind = (r) => { const s = formState.faith; ['F', 'C', 'g', 'T', 'H'].forEach(k => s[k] = read(r, 'faith-' + k)); };
@@ -237,14 +237,14 @@ const LAB = (() => {
     const inClasses = S.system.features.horde.currentSubfeature === 1;
     const s = keep('souls', { z: (!inClasses && st('horde_maxZone')) || st('horde_maxZone', 'total') || 25, Z: st('horde_maxZone', 'total') || 25, M: mg('currencyHordeSoulCorruptedGain', 1) ?? 1, R: mg('hordeRareLootTime') ?? 60, have: S.currency.horde_soulCorrupted.value, cap: S.currency.horde_soulCorrupted.cap || 200 });
     const per = soulDrop(s.z) * s.M, perH = per * 3600 / s.R;
-    return `<section class="lab" data-f="souls"><h3>Calculadora · Almas (Soul Corrupted → Soul Empowered)</h3>${inClasses ? '<p class="hint">Você está em Horde Classes agora; a zona padrão abaixo é o seu recorde (simulação de uma run de Equipment).</p>' : ''}
-      <div class="fields">${field('souls-z', 'Zona máx. desta run', s.z, 1)}${field('souls-Z', 'Zona recorde', s.Z, 1)}${field('souls-M', 'Corrupted soul gain (mult.)', s.M)}${field('souls-R', 'Segundos por rare loot', s.R)}${field('souls-have', 'Almas atuais', s.have)}${field('souls-cap', 'Capacidade', s.cap)}</div>
-      <div class="kpis"><div><small>Por rare loot</small><b>${fmt(per)}</b></div><div><small>Por hora (matando rápido)</small><b>${fmt(perH)}</b></div><div><small>Até o cap</small><b>${time(Math.max(0, s.cap - s.have) / perH * 3600)}</b></div></div>
-      <div class="tbl"><table><thead><tr><th>Zona da run</th><th>Almas/hora</th><th>vs agora</th></tr></thead><tbody>${[0, 1, 2, 5, 10, 20].map(d => { const v = soulDrop(s.z + d) * s.M * 3600 / s.R; return `<tr><td>${s.z + d}</td><td class="num">${fmt(v)}</td><td class="num">${perH ? mulx(v / perH) : '—'}</td></tr>`; }).join('')}</tbody></table></div>
+    return `<section class="lab" data-f="souls"><h3>Calculator · Souls (Corrupted → Empowered)</h3>${inClasses ? '<p class="hint">You are in Horde Classes now; the default zone below is your record (this simulates an Equipment run).</p>' : ''}
+      <div class="fields">${field('souls-z', 'Highest zone this run', s.z, 1)}${field('souls-Z', 'Record zone', s.Z, 1)}${field('souls-M', 'Corrupted soul gain (mult.)', s.M)}${field('souls-R', 'Seconds per rare loot', s.R)}${field('souls-have', 'Souls now', s.have)}${field('souls-cap', 'Capacity', s.cap)}</div>
+      <div class="kpis"><div><small>Per rare loot</small><b>${fmt(per)}</b></div><div><small>Per hour (fast kills)</small><b>${fmt(perH)}</b></div><div><small>Until the cap</small><b>${time(Math.max(0, s.cap - s.have) / perH * 3600)}</b></div></div>
+      <div class="tbl"><table><thead><tr><th>Run zone</th><th>Souls per hour</th><th>vs now</th></tr></thead><tbody>${[0, 1, 2, 5, 10, 20].map(d => { const v = soulDrop(s.z + d) * s.M * 3600 / s.R; return `<tr><td>${s.z + d}</td><td class="num">${fmt(v)}</td><td class="num">${perH ? mulx(v / perH) : '—'}</td></tr>`; }).join('')}</tbody></table></div>
       ${advice([
-        ['Como o cálculo funciona', `Cada rare loot dá 1.1^(zona−21) × (zona−20) × gain, usando a zona máx. desta run. O cap usa o recorde: round(1.1^(Z−21)·(Z−20)·200) × cap mult. Prestige = almas atuais.`],
-        ['Onde intervir', `Cada zona a mais rende ${mulx(soulDrop(s.z + 1) / Math.max(soulDrop(s.z), 1e-9))}. Empurrar zona é o maior multiplicador; depois, gain mult e reduzir o tempo de rare loot. Bater recorde de zona também sobe o cap para todas as runs seguintes.`],
-        ['Run para almas', `Suba até a zona onde o boss fica lento, farme ali até encostar no cap (overcap ×0.75), prestigie. Se uma zona nova estiver perto, ela compensa: +1 zona ≈ ${pct(soulDrop(s.z + 1) / Math.max(soulDrop(s.z), 1e-9))} para sempre no cap.`],
+        ['How it works', `Each rare loot gives 1.1^(zone − 21) × (zone − 20) × gain, using this run's highest zone. The cap uses your record: round(1.1^(Z − 21)·(Z − 20)·200) × cap mult. Prestige = the souls you hold.`],
+        ['What to change', `Each extra zone gives ${mulx(soulDrop(s.z + 1) / Math.max(soulDrop(s.z), 1e-9))}. Pushing zones is the biggest multiplier; after that, gain multipliers and faster rare loot. A new zone record also raises the cap for every later run.`],
+        ['A run for souls', `Climb to the zone where the boss gets slow, farm there until you reach the cap (overcap ×0.75), then prestige. If a new zone is close, it pays: +1 zone ≈ ${pct(soulDrop(s.z + 1) / Math.max(soulDrop(s.z), 1e-9))} on the cap, for good.`],
       ])}</section>`;
   };
   F.souls.bind = (r) => { const s = formState.souls; ['z', 'Z', 'M', 'R', 'have', 'cap'].forEach(k => s[k] = read(r, 'souls-' + k)); };
@@ -268,14 +268,14 @@ const LAB = (() => {
     const eduGain = T2 / timeTo(eduNext.b, eduNext.inc, s.from, s.to), uniGain = T2 / timeTo(uniNext.b, uniNext.inc, s.from, s.to);
     const pe = (() => { try { return S.upgrade.item.horde_education.price(s.edu).horde_courage; } catch { return 0; } })(), pu = (() => { try { return S.upgrade.item.horde_university.price(s.uni).horde_courage; } catch { return 0; } })();
     const rows = []; let acc = 0; for (let l = s.from; l < Math.min(s.to, s.from + 60); l++) { const one = Math.pow(sim.inc, l) * sim.b; acc += one; rows.push(`<tr><td>${l + 1}</td><td class="num">${time(one)}</td><td class="num">${time(acc)}</td></tr>`); }
-    return `<section class="lab" data-f="cls"><h3>Calculadora · Nível de classe (Horde Classes)</h3>
-      <div class="fields"><label class="fld"><span>Classe</span><select id="cls-cls">${Object.keys(S.horde.fighterClass).map(k => `<option value="${k}"${k === s.cls ? ' selected' : ''}>${esc(BY['class:' + k]?.n || k)}</option>`).join('')}</select></label>${field('cls-from', 'Do nível', s.from, 1)}${field('cls-to', 'Até o nível', s.to, 1)}${field('cls-edu', 'Education (nível)', s.edu, 1)}${field('cls-uni', 'University (nível)', s.uni, 1)}</div>
-      <div class="kpis"><div><small>Tempo base / crescimento</small><b>${time(sim.b)}</b><span>×${fmt(sim.inc, 4)} por nível</span></div><div><small>Tempo até o nível ${s.to}</small><b>${time(T)}</b></div><div><small>Agora (seus níveis reais)</small><b>${time(timeTo(now.b, now.inc, s.from, s.to))}</b></div></div>
+    return `<section class="lab" data-f="cls"><h3>Calculator · class level (Horde Classes)</h3>
+      <div class="fields"><label class="fld"><span>Class</span><select id="cls-cls">${Object.keys(S.horde.fighterClass).map(k => `<option value="${k}"${k === s.cls ? ' selected' : ''}>${esc(BY['class:' + k]?.n || k)}</option>`).join('')}</select></label>${field('cls-from', 'From level', s.from, 1)}${field('cls-to', 'To level', s.to, 1)}${field('cls-edu', 'Education (level)', s.edu, 1)}${field('cls-uni', 'University (level)', s.uni, 1)}</div>
+      <div class="kpis"><div><small>Base time / growth</small><b>${time(sim.b)}</b><span>×${fmt(sim.inc, 4)} per level</span></div><div><small>Time to level ${s.to}</small><b>${time(T)}</b></div><div><small>Now (your real levels)</small><b>${time(timeTo(now.b, now.inc, s.from, s.to))}</b></div></div>
       ${advice([
-        ['Como o cálculo funciona', `Tempo do nível n = Exp base × crescimento^n. ${link('upg:horde_education')} divide a base por 1.1 por nível. ${link('upg:horde_university')} reduz o crescimento acima de ${lo} (÷1.05^n ÷ (1+0.05n)).`],
-        ['O que comprar agora', `+1 Education: tempo até o nível ${s.to} ${mulx(1 / eduGain)} (custa ${fmt(pe)} courage). +1 University: ${mulx(1 / uniGain)} (custa ${fmt(pu)} courage). Por courage gasta, ${Math.log(eduGain) / (pe || 1) > Math.log(uniGain) / (pu || 1) ? '<b>Education</b>' : '<b>University</b>'} rende mais. University ganha peso quanto mais alto o nível alvo.`],
+        ['How it works', `Time for level n = base exp × growth^n. ${link('upg:horde_education')} divides the base by 1.1 per level. ${link('upg:horde_university')} lowers the growth above ${lo} (÷1.05^n ÷ (1+0.05n)).`],
+        ['What to buy now', `+1 Education: time to level ${s.to} ${mulx(1 / eduGain)} (custa ${fmt(pe)} courage). +1 University: ${mulx(1 / uniGain)} (custa ${fmt(pu)} courage). Per courage spent, ${Math.log(eduGain) / (pe || 1) > Math.log(uniGain) / (pu || 1) ? '<b>Education</b>' : '<b>University</b>'} pays more. University matters more the higher your target level.`],
       ])}
-      <div class="tbl tall"><table><thead><tr><th>Nível</th><th>Tempo deste nível</th><th>Acumulado</th></tr></thead><tbody>${rows.join('')}</tbody></table></div></section>`;
+      <div class="tbl tall"><table><thead><tr><th>Level</th><th>Time for this level</th><th>Total so far</th></tr></thead><tbody>${rows.join('')}</tbody></table></div></section>`;
   };
   F.classes.bind = (r) => { const s = formState.cls; s.cls = r.querySelector('#cls-cls').value; ['from', 'to', 'edu', 'uni'].forEach(k => s[k] = Math.round(read(r, 'cls-' + k))); r.querySelector('#cls-cls').onchange = () => { s.cls = r.querySelector('#cls-cls').value; rerenderCurrent(); }; };
 
@@ -284,12 +284,12 @@ const LAB = (() => {
     const crops = Object.entries(S.farm.crop).filter(([, c]) => c.found || c.levelMax > 0);
     const sum = crops.reduce((a, [, c]) => a + c.levelMax, 0);
     const rows = crops.map(([k, c]) => { const gain = c.level > c.levelMax && c.level >= 4 ? Math.pow(1.04, c.level - c.levelMax) : 1; const gl = Math.min(Math.max(c.level, c.levelMax), Math.floor(Math.max(c.level, c.levelMax) / 2) + 5, 25); let need = null; try { need = G['farm/expNeeded'](k); } catch {} return { k, c, gain, gl, need }; }).sort((a, b) => b.gain - a.gain);
-    return `<section class="lab"><h3>Calculadora · Prestige de crops</h3>
-      <div class="kpis"><div><small>Σ nível máx. (prestige)</small><b>${sum}</b></div><div><small>Bônus atual em crop gain</small><b>${mulx(Math.pow(1.04, sum))}</b></div></div>
-      <div class="tbl"><table><thead><tr><th>Crop</th><th>Nível / recorde</th><th>Prestigiar agora</th><th>GL desta crop</th><th>Exp p/ próximo</th></tr></thead><tbody>${rows.map(r => `<tr class="${r.gain > 1 ? 'best' : ''}"><td>${link('crop:' + r.k)}</td><td class="num">${r.c.level} / ${r.c.levelMax}</td><td class="num">${r.gain > 1 ? mulx(r.gain) + ' em tudo' : r.c.level < 4 ? 'precisa nível 4' : 'abaixo do recorde'}</td><td class="num">${r.gl}/25</td><td class="num">${r.need ? fmt(r.c.exp) + ' / ' + fmt(r.need) : '—'}</td></tr>`).join('')}</tbody></table></div>
+    return `<section class="lab"><h3>Calculator · crop prestige</h3>
+      <div class="kpis"><div><small>Σ record levels (prestige)</small><b>${sum}</b></div><div><small>Crop gain bonus now</small><b>${mulx(Math.pow(1.04, sum))}</b></div></div>
+      <div class="tbl"><table><thead><tr><th>Crop</th><th>Level / record</th><th>Prestige now</th><th>This crop's GL</th><th>Exp to next</th></tr></thead><tbody>${rows.map(r => `<tr class="${r.gain > 1 ? 'best' : ''}"><td>${link('crop:' + r.k)}</td><td class="num">${r.c.level} / ${r.c.levelMax}</td><td class="num">${r.gain > 1 ? mulx(r.gain) + ' on all crops' : r.c.level < 4 ? 'needs level 4' : 'below its record'}</td><td class="num">${r.gl}/25</td><td class="num">${r.need ? fmt(r.c.exp) + ' / ' + fmt(r.need) : '—'}</td></tr>`).join('')}</tbody></table></div>
       ${advice([
-        ['Como o cálculo funciona', 'Bônus global = ×1.04 por nível de recorde somado de todas as crops. Prestigiar uma crop só aumenta o bônus se o nível atual passar o recorde dela.'],
-        ['Onde intervir', 'Crops abaixo do nível 10 dão +1 GL por nível (o GL mais barato da Farm). Crops com o gene Prestige voltam com nível −5, então dá para prestigiar com mais frequência. Lembre de reselecionar cards da crop antes.'],
+        ['How it works', 'Bonus for all crops = ×1.04 per record level, added up over every crop. Prestiging a crop only raises it if the crop is above its own record.'],
+        ['What to change', 'Crops under level 10 give +1 GL per level (the cheapest GL in the Farm). Crops with the Prestige gene come back at level − 5, so you can prestige them more often. Remember to select the crop\'s cards again first.'],
       ])}</section>`;
   };
 
@@ -335,17 +335,17 @@ const LAB = (() => {
   F.gl = () => {
     const parts = S.meta.globalLevelParts; const gl = S.meta.globalLevel;
     const next = Object.entries(S.meta.globalLevelUnlocks).filter(([, v]) => v > gl).sort((a, b) => a[1] - b[1]).slice(0, 4);
-    return `<section class="lab"><h3>Seu Global level</h3>
-      <div class="kpis"><div><small>Global level</small><b>${gl}</b></div>${next[0] ? `<div><small>Próxima feature</small><b>${link('unl:' + next[0][0])}</b><span>faltam ${next[0][1] - gl} GL</span></div>` : ''}<div><small>Exam pass</small><span>próximo em ${10 - gl % 10} GL</span></div></div>
-      <div class="tbl"><table><thead><tr><th>Parte</th><th>Valor</th></tr></thead><tbody>${S.meta.globalLevelList.map(p => `<tr><td>${esc(GB.en.globalLevel[p] || p)}</td><td class="num">${parts[p] ?? 0}</td></tr>`).join('')}</tbody></table></div>
-      ${next.length ? `<p class="hint">Próximos: ${next.map(([u, v]) => `${link('unl:' + u)} (GL ${v})`).join(' · ')}</p>` : ''}</section>`;
+    return `<section class="lab"><h3>Your Global level</h3>
+      <div class="kpis"><div><small>Global level</small><b>${gl}</b></div>${next[0] ? `<div><small>Next feature</small><b>${link('unl:' + next[0][0])}</b><span>${next[0][1] - gl} GL to go</span></div>` : ''}<div><small>Exam pass</small><span>next in ${10 - gl % 10} GL</span></div></div>
+      <div class="tbl"><table><thead><tr><th>Part</th><th>Value</th></tr></thead><tbody>${S.meta.globalLevelList.map(p => `<tr><td>${esc(GB.en.globalLevel[p] || p)}</td><td class="num">${parts[p] ?? 0}</td></tr>`).join('')}</tbody></table></div>
+      ${next.length ? `<p class="hint">Next: ${next.map(([u, v]) => `${link('unl:' + u)} (GL ${v})`).join(' · ')}</p>` : ''}</section>`;
   };
 
   // Cryolab
   F.cryo = () => {
-    const rows = Object.entries(S.cryolab).map(([f, c]) => { const sub = S.system.features[f]?.currentSubfeature ?? 0; let pg = {}, eg = 0, need = 0; try { pg = G['cryolab/prestigeGain'](f); eg = G['cryolab/expGain'](f, sub); need = G['cryolab/expNeeded'](c.level[sub]); } catch {} return `<tr><td>${link('feat:' + f)}</td><td>${c.active ? '❄ congelada' : '—'}</td><td class="num">${c.level.join(' / ')}</td><td class="num">${fmt(c.exp[sub])} / ${fmt(need)}</td><td class="num">${eg ? fmt(eg) + '/dia' : '—'}</td><td class="num">${Object.entries(pg).map(([k, v]) => fmt(v) + ' ' + curLink(k) + '/dia').join('<br>') || '—'}</td></tr>`; });
-    return `<section class="lab"><h3>Seu Cryolab</h3><div class="tbl"><table><thead><tr><th>Feature</th><th>Estado</th><th>Níveis</th><th>Exp</th><th>Exp/dia se congelada</th><th>Moeda de prestige/dia</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
-      ${advice([['Onde intervir', 'Exp/dia depende só da parte do GL daquela feature. Moeda/dia depende do seu melhor prestige: bater recorde de prestige aumenta a renda passiva para sempre. Congele a feature que você menos precisa jogar e cujo nível de cryolab está mais perto de subir.']])}</section>`;
+    const rows = Object.entries(S.cryolab).map(([f, c]) => { const sub = S.system.features[f]?.currentSubfeature ?? 0; let pg = {}, eg = 0, need = 0; try { pg = G['cryolab/prestigeGain'](f); eg = G['cryolab/expGain'](f, sub); need = G['cryolab/expNeeded'](c.level[sub]); } catch {} return `<tr><td>${link('feat:' + f)}</td><td>${c.active ? '❄ congelada' : '—'}</td><td class="num">${c.level.join(' / ')}</td><td class="num">${fmt(c.exp[sub])} / ${fmt(need)}</td><td class="num">${eg ? fmt(eg) + '/day' : '—'}</td><td class="num">${Object.entries(pg).map(([k, v]) => fmt(v) + ' ' + curLink(k) + '/day').join('<br>') || '—'}</td></tr>`; });
+    return `<section class="lab"><h3>Your Cryo lab</h3><div class="tbl"><table><thead><tr><th>Feature</th><th>State</th><th>Levels</th><th>Exp</th><th>Exp per day if frozen</th><th>Prestige currency per day</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+      ${advice([['What to change', 'Exp per day only depends on that feature\'s part of your GL. Currency per day depends on your best prestige: a new prestige record raises the passive income for good. Freeze the feature you least need to play and whose cryolab level is closest to going up.']])}</section>`;
   };
 
   // Cryo lab page: every subfeature, live (read-only)
@@ -424,22 +424,22 @@ const LAB = (() => {
     return out;
   };
   const PLAN = {
-    mining: { goal: 'cristais (prestige da mina)', calc: () => F.dweller(S.system.features.mining.currentSubfeature || 0), tips: ['Desça até cada camada levar alguns minutos: profundidade da run define o limite do dweller.', 'Compre Depth Dweller assim que possível e deixe correr; veja na calculadora o melhor ponto de cristais/h.', 'Antes do prestige: selecione cards (Mining) e confira se algum recorde de profundidade/dweller está perto.'] },
-    village: { goal: 'Blessing (prestige da village)', calc: () => F.faith(), tips: ['Moradias até nível 25 dão GL; priorize as que faltam.', 'Faith continua subindo acima do cap (×0.9 por estágio). Suba Religion no fim da run.', 'Antes do prestige: selecione cards (Village).'] },
-    horde: { goal: 'Soul Empowered (prestige da horde)', calc: () => F.souls(), tips: ['Empurre zona: cada zona multiplica almas por ~1.15 e recordes sobem o cap.', 'Itens perto de mastery 3 perdem nível no prestige — espere se estiverem perto.', 'Antes do prestige: selecione cards (Horde).'] },
-    farm: { goal: 'Prestige de crops', calc: () => F.crops(), tips: ['Prestigie só crops acima do próprio recorde.', 'Crops abaixo do nível 10 são o GL mais barato.', 'Escolha genes pensando na rotação: os usados agora ficam bloqueados na próxima vez.'] },
-    gallery: { goal: 'Cash (prestige da gallery)', calc: () => F.cash(), tips: ['Cash cresce devagar com beauty: runs curtas e frequentes.', 'Priorize multiplicadores de Cash gain.', 'Cores novas liberam sistemas: produzir a próxima cor uma vez vale uma run mais longa.'] },
+    mining: { goal: 'crystals (mine prestige)', calc: () => F.dweller(S.system.features.mining.currentSubfeature || 0), tips: ['Go down until each layer takes a few minutes: this run\'s depth sets the dweller limit.', 'Buy Depth Dweller as soon as you can and let it run; the calculator shows the best moment for crystals per hour.', 'Before you prestige: select Mining cards and check whether a depth or dweller record is close.'] },
+    village: { goal: 'Blessing (Village prestige)', calc: () => F.faith(), tips: ['Housing up to level 25 gives GL; do the missing ones first.', 'Faith keeps growing above the cap (×0.9 per step). Raise Religion at the end of the run.', 'Before you prestige: select Village cards.'] },
+    horde: { goal: 'Empowered souls (Horde prestige)', calc: () => F.souls(), tips: ['Push zones: each zone multiplies souls by about 1.15, and records raise the cap.', 'Items close to mastery 3 lose their levels when you prestige — wait if they are close.', 'Before you prestige: select Horde cards.'] },
+    farm: { goal: 'crop prestige', calc: () => F.crops(), tips: ['Only prestige crops that are above their own record.', 'Crops under level 10 are the cheapest GL.', 'Pick genes with the next cycle in mind: the ones you use now are blocked next time.'] },
+    gallery: { goal: 'Cash (Gallery prestige)', calc: () => F.cash(), tips: ['Cash grows slowly with beauty: do short, frequent runs.', 'Put Cash gain multipliers first.', 'New colors open new systems: making the next color once is worth a longer run.'] },
   };
   function planner(f) {
     const p = PLAN[f]; if (!p) return '';
     const ups = nextUpgrades(f), qs = questsFor(f);
     const statLabel = k => GB.en.stat?.[k]?.description || k;
     return `<section class="lab plan">
-      <h3>Planejar a próxima run · ${esc(BY['feat:' + f]?.n || f)}</h3>
+      <h3>Plan the next run · ${esc(BY['feat:' + f]?.n || f)}</h3>
       <div class="goals">
-        <article><h4>Run para ${esc(p.goal)}</h4><ul>${p.tips.map(t => `<li>${t}</li>`).join('')}</ul></article>
-        <article><h4>Run para destravar o próximo upgrade</h4>${ups.length ? `<ul>${ups.map(x => `<li>${link('upg:' + x.k)} — ${esc(statLabel(x.u.requirementStat))}: <span class="num">${fmt(x.cur)} / ${fmt(x.need)}</span>${x.need - x.cur <= Math.max(5, x.need * 0.05) ? ' <b class="up">perto</b>' : ''}</li>`).join('')}</ul><p class="hint">Requisitos usam o recorde de todos os tempos: basta alcançar uma vez.</p>` : '<p class="hint">Nada pendente por recorde nesta feature.</p>'}</article>
-        <article><h4>Run para questline (Generals)</h4>${qs.length ? qs.map(q => `<p>${link('quest:' + q.g + '.' + q.q)} · estágio ${q.stage}/${q.of}${q.challenge ? ' <span class="tag">⚔ dentro de uma run</span>' : ''}</p><ul>${q.tasks.map(t => `<li class="${t.ok ? 'up' : ''}">${t.ok ? '✓' : '○'} ${esc(t.txt)} <span class="num key">(agora: ${typeof t.cur === 'boolean' ? (t.cur ? 'sim' : 'não') : fmt(t.cur)})</span></li>`).join('')}</ul>`).join('') : '<p class="hint">Nenhum estágio atual depende desta feature.</p>'}</article>
+        <article><h4>A run for ${esc(p.goal)}</h4><ul>${p.tips.map(t => `<li>${t}</li>`).join('')}</ul></article>
+        <article><h4>A run to unlock the next upgrade</h4>${ups.length ? `<ul>${ups.map(x => `<li>${link('upg:' + x.k)} — ${esc(statLabel(x.u.requirementStat))}: <span class="num">${fmt(x.cur)} / ${fmt(x.need)}</span>${x.need - x.cur <= Math.max(5, x.need * 0.05) ? ' <b class="up">close</b>' : ''}</li>`).join('')}</ul><p class="hint">Requirements use your all-time record: you only need to reach them once.</p>` : '<p class="hint">Nothing in this feature waits on a record.</p>'}</article>
+        <article><h4>A run for a questline (Generals)</h4>${qs.length ? qs.map(q => `<p>${link('quest:' + q.g + '.' + q.q)} · stage ${q.stage}/${q.of}${q.challenge ? ' <span class="tag">⚔ inside one run</span>' : ''}</p><ul>${q.tasks.map(t => `<li class="${t.ok ? 'up' : ''}">${t.ok ? '✓' : '○'} ${esc(t.txt)} <span class="num key">(now: ${typeof t.cur === 'boolean' ? (t.cur ? 'yes' : 'no') : fmt(t.cur)})</span></li>`).join('')}</ul>`).join('') : '<p class="hint">No current stage depends on this feature.</p>'}</article>
       </div>
     </section>${p.calc()}`;
   }
@@ -477,14 +477,14 @@ const LAB = (() => {
   };
 
 
-  // ---------- "O que falta": notes, unlocks e relics que você ainda não tem ----------
+  // ---------- "What's missing": notes, unlocks e relics que você ainda não tem ----------
   let META = {};
   const secText = (id, h) => { const e = BY[id]; const x = e && e.s.find(z => z.h === h); return x ? x.b.map(rich).join('<br>') : ''; };
   const bar = (cur, need) => { const r = need > 0 ? Math.min(1, cur / need) : 0; return `<span class="pbar"><i style="width:${(r * 100).toFixed(1)}%"></i></span> <span class="num">${fmt(cur)} / ${fmt(need)}</span>`; };
   const cropPath = (crop) => {
     const out = [];
-    for (const [k, u] of Object.entries(S.upgrade.item)) u.effect.forEach(e => { if (e.type === 'farmSeed' && e.name === crop) { let lv = 1; for (let l = 1; l <= (u.cap ?? 40); l++) { try { if (e.value(l)) { lv = l; break; } } catch {} } out.push(`${link('upg:' + k)} nível ${lv} (você tem ${u.highestLevel})`); } });
-    for (const [k, r] of Object.entries(S.relic.item)) { let eff = []; try { eff = r.effect(r.level || 1) || []; } catch {} if (eff.some(e => e.type === 'farmSeed' && e.name === crop)) out.push(`relic ${link('relic:' + k)}${r.found ? ' ✓' : ' — ' + (secText('relic:' + k, 'De onde vem') || 'fonte desconhecida')}`); }
+    for (const [k, u] of Object.entries(S.upgrade.item)) u.effect.forEach(e => { if (e.type === 'farmSeed' && e.name === crop) { let lv = 1; for (let l = 1; l <= (u.cap ?? 40); l++) { try { if (e.value(l)) { lv = l; break; } } catch {} } out.push(`${link('upg:' + k)} level ${lv} (you have ${u.highestLevel})`); } });
+    for (const [k, r] of Object.entries(S.relic.item)) { let eff = []; try { eff = r.effect(r.level || 1) || []; } catch {} if (eff.some(e => e.type === 'farmSeed' && e.name === crop)) out.push(`relic ${link('relic:' + k)}${r.found ? ' ✓' : ' — ' + (secText('relic:' + k, 'Where it comes from') || 'unknown source')}`); }
     return out;
   };
   const noteHow = (key) => {
@@ -494,25 +494,25 @@ const LAB = (() => {
       let prog = '';
       try {
         if (sx.group === 'GL') prog = bar(S.meta.globalLevel, sx.sortKey);
-        else if (sx.group === 'mining') prog = bar(S.stat.mining_maxDepth0.total, sx.sortKey + 1) + ' de profundidade';
-        else if (sx.group === 'horde') prog = bar(S.stat.horde_maxZone.total, sx.sortKey + 1) + ' de zona';
+        else if (sx.group === 'mining') prog = bar(S.stat.mining_maxDepth0.total, sx.sortKey + 1) + ' depth';
+        else if (sx.group === 'horde') prog = bar(S.stat.horde_maxZone.total, sx.sortKey + 1) + ' zone';
         else if (sx.group === 'farm') {
           const crop = sx.crop || (sx.how.match(/colher (\w+)/) || [])[1];
           const c = S.farm.crop[crop];
-          prog = c ? (c.found ? `Você já tem a semente de ${link('crop:' + crop)}: plante e colha uma vez.` : `Primeiro destrave a semente de ${link('crop:' + crop)}: ${cropPath(crop).join(' <b>ou</b> ') || 'fonte desconhecida'}.`) : '';
+          prog = c ? (c.found ? `You already have the seed for ${link('crop:' + crop)}: plant it and harvest once.` : `First unlock the seed for ${link('crop:' + crop)}: ${cropPath(crop).join(' <b>or</b> ') || 'unknown source'}.`) : '';
         } else if (sx.group === 'upgrade') {
           const uk = sx.upgrade || (sx.how.match(/`(\w+)`/) || [])[1]; const u = S.upgrade.item[uk];
-          if (u) { let req = true; try { req = u.requirement(u.level); } catch {} let p = {}; try { p = u.price(0); } catch {} prog = `${req ? 'Já disponível para comprar' : 'Ainda bloqueado: ' + (secText('upg:' + uk, 'Como destrava') || '')}. Custo do nível 1: ${Object.entries(p).map(([c, v]) => fmt(v) + ' ' + curLink(c)).join(' + ') || '—'}.`; }
+          if (u) { let req = true; try { req = u.requirement(u.level); } catch {} let p = {}; try { p = u.price(0); } catch {} prog = `${req ? 'Available to buy now' : 'Still locked: ' + (secText('upg:' + uk, 'How it unlocks') || '')}. Level 1 cost: ${Object.entries(p).map(([c, v]) => fmt(v) + ' ' + curLink(c)).join(' + ') || '—'}.`; }
         } else if (sx.group === 'general') {
-          const m = sx.general ? [null, sx.general, sx.quest, sx.stage] : sx.how.match(/General (\w+) · (\w+) · estágio (\d+)/); const qu = m && S.general[m[1]]?.quests[m[2]];
-          if (qu) prog = `Questline ${link('quest:' + m[1] + '.' + m[2])}: você está no estágio ${qu.stage + 1} de ${qu.stages.length}; o note sai ao concluir o estágio ${m[3]}.`;
+          const m = sx.general ? [null, sx.general, sx.quest, sx.stage] : sx.how.match(/General (\w+) · (\w+) · stage (\d+)/); const qu = m && S.general[m[1]]?.quests[m[2]];
+          if (qu) prog = `Questline ${link('quest:' + m[1] + '.' + m[2])}: you are at stage ${qu.stage + 1} of ${qu.stages.length}; you get the note when you finish stage ${m[3]}.`;
         }
       } catch {}
-      parts.push(`<div>${sx.upgrade ? 'Comprar o 1º nível de ' + link('upg:' + sx.upgrade) : sx.general ? link('quest:' + sx.general + '.' + sx.quest) + ' · estágio ' + sx.stage : esc(sx.how)}${prog ? '<br>' + prog : ''}</div>`);
+      parts.push(`<div>${sx.upgrade ? 'Buy the first level of ' + link('upg:' + sx.upgrade) : sx.general ? link('quest:' + sx.general + '.' + sx.quest) + ' · stage ' + sx.stage : esc(sx.how)}${prog ? '<br>' + prog : ''}</div>`);
     }
-    return parts.join('') || '<div>Não dá para pegar nesta versão do jogo.</div>';
+    return parts.join('') || '<div>You cannot get it in this version of the game.</div>';
   };
-  // ---------- "O que falta": por feature, a partir do save ----------
+  // ---------- "What's missing": por feature, a partir do save ----------
   const natural = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
   const ratio = (cur, need) => need > 0 ? Math.max(0, Math.min(1, cur / need)) : 0;
   const nm = (id) => BY[id]?.n || id.split(':').slice(1).join(':');
@@ -529,20 +529,20 @@ const LAB = (() => {
     for (const t of META.unlockTriggers?.[k] || []) {
       let m, cur = null, need = null, unit = '';
       if (t.source === 'globalLevel') { cur = S.meta.globalLevel; need = +t.detail.replace('GL ', ''); unit = ' GL'; }
-      else if ((m = t.detail.match(/Horde maxZone total ([>=]+) (\d+)/))) { cur = statT('horde_maxZone'); need = +m[2] + (m[1] === '>' ? 1 : 0); unit = ' de zona'; }
+      else if ((m = t.detail.match(/Horde maxZone total ([>=]+) (\d+)/))) { cur = statT('horde_maxZone'); need = +m[2] + (m[1] === '>' ? 1 : 0); unit = ' zone'; }
       else if ((m = t.detail.match(/Mining maxDepth0 >= (\d+)/))) { cur = statT('mining_maxDepth0'); need = +m[1]; unit = ' m'; }
-      else if (t.source === 'hordeBattlePass') { cur = tryv(() => G['horde/battlePassCurrentLevel'], 0); need = +t.detail.replace(/\D+/g, ''); unit = ' de battle pass'; }
-      else if (t.source === 'hordeTower') { m = t.detail.match(/Torre (\w+) andar (\d+)/); if (m) { cur = S.horde.tower[m[1]]?.highest ?? 0; need = +m[2]; unit = ' andares'; } }
-      else if (t.source === 'upgrade') { const [uk, , lv] = t.detail.split(' '); const u = S.upgrade.item[uk]; if (u) { cur = u.highestLevel; need = +lv; unit = ' níveis'; } }
+      else if (t.source === 'hordeBattlePass') { cur = tryv(() => G['horde/battlePassCurrentLevel'], 0); need = +t.detail.replace(/\D+/g, ''); unit = ' battle pass'; }
+      else if (t.source === 'hordeTower') { m = t.detail.match(/Torre (\w+) andar (\d+)/); if (m) { cur = S.horde.tower[m[1]]?.highest ?? 0; need = +m[2]; unit = ' floors'; } }
+      else if (t.source === 'upgrade') { const [uk, , lv] = t.detail.split(' '); const u = S.upgrade.item[uk]; if (u) { cur = u.highestLevel; need = +lv; unit = ' levels'; } }
       if (need !== null && (!best || ratio(cur, need) > best.r)) best = { r: ratio(cur, need), html: bar(cur, need) + unit };
     }
     return best;
   };
-  const unlockItem = (k) => { const p = unlockProg(k); const lib = secText('unl:' + k, 'O que este unlock libera'); return item('unl:' + k, (secText('unl:' + k, 'Como destrava') || 'Sem gatilho nesta versão.') + (p ? '<br>' + p.html : ''), p ? p.r : null, lib ? `Libera: ${lib}` : ''); };
-  const relicItem = (k) => { const eff = secText('relic:' + k, 'Efeitos'); return item('relic:' + k, secText('relic:' + k, 'De onde vem') || 'Fonte desconhecida.', null, eff ? `Dá: ${eff}` : ''); };
+  const unlockItem = (k) => { const p = unlockProg(k); const lib = secText('unl:' + k, 'What it unlocks'); return item('unl:' + k, (secText('unl:' + k, 'How it unlocks') || 'Nothing unlocks it in this version.') + (p ? '<br>' + p.html : ''), p ? p.r : null, lib ? `Libera: ${lib}` : ''); };
+  const relicItem = (k) => { const eff = secText('relic:' + k, 'Effects'); return item('relic:' + k, secText('relic:' + k, 'Where it comes from') || 'Unknown source.', null, eff ? `Gives: ${eff}` : ''); };
   const noteItem = (k) => item('note:' + k, noteHow(k), null);
 
-  // upgrades nunca comprados de uma feature
+  // upgrades never bought de uma feature
   const upgradeGroups = (f) => {
     const types = { regular: 'Upgrades', building: 'Buildings', prestige: 'Prestige upgrades', premium: 'Premium upgrades', shape: 'Shape upgrades' };
     const out = [];
@@ -552,15 +552,15 @@ const LAB = (() => {
       const miss = all.filter(([, u]) => !(u.highestLevel > 0 || u.level > 0 || u.bought > 0)).map(([k, u]) => {
         const req = tryv(() => u.requirement(u.level), true);
         const p = tryv(() => u.price(u.bought), {});
-        if (req) return item('upg:' + k, `Já disponível. Custo do nível 1: ${priceHtml(p) || '—'}${canPay(p) ? ' — <b class="up">dá para comprar agora</b>' : ''}`, canPay(p) ? 1 : 0.99);
+        if (req) return item('upg:' + k, `Available now. Level 1 cost: ${priceHtml(p) || '—'}${canPay(p) ? ' — <b class="up">you can buy it now</b>' : ''}`, canPay(p) ? 1 : 0.99);
         let prog = null;
         if (u.requirementStat && u.requirementValue !== null) {
           const cur = u.requirementStat === 'farm_seedBox' ? S.upgrade.item.farm_seedBox.highestLevel : u.requirementStat === 'custom_hordeBattlepass' ? tryv(() => G['horde/battlePassCurrentLevel'], 0) : statT(u.requirementStat);
           prog = { r: ratio(cur, u.requirementValue), html: bar(cur, u.requirementValue) };
         }
-        return item('upg:' + k, (secText('upg:' + k, 'Como destrava') || 'Bloqueado.') + (prog ? '<br>' + prog.html : ''), prog ? prog.r * 0.98 : 0);
+        return item('upg:' + k, (secText('upg:' + k, 'How it unlocks') || 'Bloqueado.') + (prog ? '<br>' + prog.html : ''), prog ? prog.r * 0.98 : 0);
       });
-      out.push(group('upg-' + t, `${title} nunca comprados`, miss, all.length, t === 'regular' || t === 'building' ? 'Requisitos usam o recorde de todos os tempos.' : ''));
+      out.push(group('upg-' + t, `${title} never bought`, miss, all.length, t === 'regular' || t === 'building' ? 'Requirements use your all-time record.' : ''));
     }
     return out;
   };
@@ -581,51 +581,51 @@ const LAB = (() => {
       const gs = [];
       const d0 = statT('mining_maxDepth0'), d1 = statT('mining_maxDepth1');
       const ores = Object.entries(S.mining.ingredient);
-      gs.push(group('ore', 'Ores nunca obtidos', ores.filter(([k]) => statT('mining_' + k) <= 0).map(([k, o]) => item('cur:mining_' + k, `Aparece a partir de ${o.minDepth} m na Ore mine.<br>${bar(d0, o.minDepth)} de profundidade recorde`, ratio(d0, o.minDepth))), ores.length));
-      const RARE = [['granite', 50, 'camada já quebrada ≥ 1000 vezes', 0], ['salt', 70, 'camada com exatamente 1 tipo de ore', 0], ['coal', 90, '1ª quebra da camada', 0], ['sulfur', 110, '1ª quebra da camada', 0], ['niter', 130, 'quebras da camada = 1, 10, 100…', 0], ['obsidian', 150, 'sem enhancements ativos', 0], ['deeprock', 275, 'soma dos dígitos da profundidade ≥ 14', 0], ['limestone', 2, 'profundidade prima (Gas giant)', 1], ['moonshard', 20, 'até a profundidade do dweller (Gas giant)', 1], ['phosphorus', 150, 'profundidade múltipla de 25 (Gas giant)', 1]];
-      gs.push(group('rare', 'Rare earth nunca obtidos', RARE.filter(([k]) => S.currency['mining_' + k] && statT('mining_' + k) <= 0).map(([k, d, how, sub]) => item('cur:mining_' + k, `${how}, a partir de ${d} m.<br>${bar(sub ? d1 : d0, d)} m recorde${sub ? ' no Gas giant' : ''}`, ratio(sub ? d1 : d0, d))), RARE.filter(([k]) => S.currency['mining_' + k]).length));
+      gs.push(group('ore', 'Ores never found', ores.filter(([k]) => statT('mining_' + k) <= 0).map(([k, o]) => item('cur:mining_' + k, `Shows up from ${o.minDepth}  m in the Ore mine.<br>${bar(d0, o.minDepth)} record depth`, ratio(d0, o.minDepth))), ores.length));
+      const RARE = [['granite', 50, 'a layer broken 1000 times or more', 0], ['salt', 70, 'a layer with exactly 1 kind of ore', 0], ['coal', 90, 'first break of the layer', 0], ['sulfur', 110, 'first break of the layer', 0], ['niter', 130, 'quebras da camada = 1, 10, 100…', 0], ['obsidian', 150, 'with no active enhancements', 0], ['deeprock', 275, 'depth digits add up to 14 or more', 0], ['limestone', 2, 'profundidade prima (Gas giant)', 1], ['moonshard', 20, 'down to the dweller depth (Gas giant)', 1], ['phosphorus', 150, 'a depth that is a multiple of 25 (Gas giant)', 1]];
+      gs.push(group('rare', 'Rare earths never found', RARE.filter(([k]) => S.currency['mining_' + k] && statT('mining_' + k) <= 0).map(([k, d, how, sub]) => item('cur:mining_' + k, `${how}, from ${d} m.<br>${bar(sub ? d1 : d0, d)}  m record${sub ? ' in the Gas giant' : ''}`, ratio(sub ? d1 : d0, d))), RARE.filter(([k]) => S.currency['mining_' + k]).length));
       const gas = Object.entries(S.mining.gas);
-      gs.push(group('gas', 'Gases nunca obtidos', gas.filter(([k]) => statT('mining_' + k) <= 0).map(([k, d]) => item('cur:mining_' + k, `Primeira quebra de cada camada nova no Gas giant a partir de ${d} m.<br>${bar(d1, d)} m recorde no Gas giant`, ratio(d1, d))), gas.length));
+      gs.push(group('gas', 'Gases never found', gas.filter(([k]) => statT('mining_' + k) <= 0).map(([k, d]) => item('cur:mining_' + k, `First break of each new Gas giant layer from ${d} m.<br>${bar(d1, d)}  m record in the Gas giant`, ratio(d1, d))), gas.length));
       const sm = Object.entries(S.mining.smeltery);
       const temp = tryv(() => G['mult/get']('miningSmelteryTemperature'), 0);
-      gs.push(group('bar', 'Barras nunca fundidas', sm.filter(([, v]) => statT(v.output) <= 0).map(([k, v]) => { const p = tryv(() => v.price(0), {}); return item('smelt:' + k, `Smeltery: ${priceHtml(p)}. Temperatura mínima ${v.minTemperature}° (você tem ${fmt(temp)}°).`, ratio(temp, v.minTemperature)); }), sm.length));
+      gs.push(group('bar', 'Bars never smelted', sm.filter(([, v]) => statT(v.output) <= 0).map(([k, v]) => { const p = tryv(() => v.price(0), {}); return item('smelt:' + k, `Smeltery: ${priceHtml(p)}. Lowest temperature ${v.minTemperature}° (you have ${fmt(temp)}°).`, ratio(temp, v.minTemperature)); }), sm.length));
       const bc = Object.entries(S.mining.beacon);
-      gs.push(group('beacon', 'Beacons sem nenhum', bc.filter(([, b]) => (tryv(() => G['mult/get'](b.ownedMult), 0) || 0) <= 0).map(([k]) => item('beacon:' + k, secText('beacon:' + k, 'O que é') + (secText('mult:' + S.mining.beacon[k].ownedMult, 'Afetado por') ? '<br>Fontes: ' + secText('mult:' + S.mining.beacon[k].ownedMult, 'Afetado por') : ''))), bc.length));
+      gs.push(group('beacon', 'Beacons you have none of', bc.filter(([, b]) => (tryv(() => G['mult/get'](b.ownedMult), 0) || 0) <= 0).map(([k]) => item('beacon:' + k, secText('beacon:' + k, 'What it is') + (secText('mult:' + S.mining.beacon[k].ownedMult, 'Affected by') ? '<br>Sources: ' + secText('mult:' + S.mining.beacon[k].ownedMult, 'Affected by') : ''))), bc.length));
       return gs;
     },
     village: () => {
       const gs = [];
       const housing = Object.entries(S.upgrade.item).filter(([, u]) => u.feature === 'village' && u.subtype === 'housing');
-      gs.push(group('house', 'Moradias abaixo do nível 25 (GL)', housing.filter(([, u]) => u.level < 25).map(([k, u]) => item('upg:' + k, `Cada nível até 25 vale +1 GL (conta o nível desta run; o GL guarda o recorde da soma).<br>${bar(u.level, 25)}`, ratio(u.level, 25))), housing.length, `GL atual da parte Workers: ${S.meta.globalLevelParts.village_0 ?? 0} / 250.`));
+      gs.push(group('house', 'Housing under level 25 (GL)', housing.filter(([, u]) => u.level < 25).map(([k, u]) => item('upg:' + k, `Each level up to 25 is +1 GL (it counts this run's level; GL keeps the record of the total).<br>${bar(u.level, 25)}`, ratio(u.level, 25))), housing.length, `Workers GL now: ${S.meta.globalLevelParts.village_0 ?? 0} / 250.`));
       const cr = Object.entries(S.village.crafting);
-      gs.push(group('recipe', 'Receitas não liberadas', cr.filter(([, c]) => !c.unlocked).map(([k]) => item('craft:' + k, secText('craft:' + k, 'Mencionado por') || 'Liberada por milestone de outra receita.')), cr.length));
+      gs.push(group('recipe', 'Recipes not unlocked', cr.filter(([, c]) => !c.unlocked).map(([k]) => item('craft:' + k, secText('craft:' + k, 'Mentioned by') || 'Unlocked by a milestone of another recipe.')), cr.length));
       const ms = [];
       let msTot = 0;
-      for (const [k, c] of cr) { for (const [n] of Object.entries(c.milestone || {})) { msTot++; if (c.crafted < +n) ms.push(item('craft:' + k, `Próximo milestone: ${fmt(+n)} crafts (+1 GL).<br>${bar(c.crafted, +n)}${c.unlocked ? '' : ' — receita ainda bloqueada'}`, ratio(c.crafted, +n))); } }
-      gs.push(group('ms', 'Milestones de crafting (cada um = +1 GL)', ms, msTot, `GL atual da parte Crafting: ${S.meta.globalLevelParts.village_1 ?? 0} / ${msTot}.`));
+      for (const [k, c] of cr) { for (const [n] of Object.entries(c.milestone || {})) { msTot++; if (c.crafted < +n) ms.push(item('craft:' + k, `Next milestone: ${fmt(+n)} crafts (+1 GL).<br>${bar(c.crafted, +n)}${c.unlocked ? '' : ' — recipe still locked'}`, ratio(c.crafted, +n))); } }
+      gs.push(group('ms', 'Crafting milestones (+1 GL each)', ms, msTot, `Crafting GL now: ${S.meta.globalLevelParts.village_1 ?? 0} / ${msTot}.`));
       const of = Object.entries(S.village.offering);
-      gs.push(group('offer', 'Offerings não liberadas', of.filter(([, o]) => !S.unlock[o.unlock]?.see).map(([k, o]) => item('offer:' + k, `Exige ${link('unl:' + o.unlock)}: ${secText('unl:' + o.unlock, 'Como destrava')}`, unlockProg(o.unlock)?.r ?? null)), of.length));
+      gs.push(group('offer', 'Offerings not unlocked', of.filter(([, o]) => !S.unlock[o.unlock]?.see).map(([k, o]) => item('offer:' + k, `Exige ${link('unl:' + o.unlock)}: ${secText('unl:' + o.unlock, 'How it unlocks')}`, unlockProg(o.unlock)?.r ?? null)), of.length));
       return gs;
     },
     horde: () => {
       const gs = [];
       const zt = statT('horde_maxZone');
       const it = Object.entries(S.horde.items);
-      gs.push(group('equip', 'Equipamentos nunca encontrados', it.filter(([, v]) => !v.found).map(([k, v]) => item('equip:' + k, v.unlock ? `Exige ${link('unl:' + v.unlock)}.${S.unlock[v.unlock]?.see ? ' (já liberado: cai na Horde)' : ''}` : `Cai a partir da zona ${v.findZone} (chance ${fmt(v.findChance * 100)}% por inimigo).<br>${bar(zt, v.findZone)} de zona recorde`, v.unlock ? (S.unlock[v.unlock]?.see ? 0.9 : 0) : ratio(zt, v.findZone))), it.length));
+      gs.push(group('equip', 'Equipment never found', it.filter(([, v]) => !v.found).map(([k, v]) => item('equip:' + k, v.unlock ? `Exige ${link('unl:' + v.unlock)}.${S.unlock[v.unlock]?.see ? ' (already unlocked: it drops in the Horde)' : ''}` : `Drops from zone ${v.findZone} (chance ${fmt(v.findChance * 100)}% per enemy).<br>${bar(zt, v.findZone)} record zone`, v.unlock ? (S.unlock[v.unlock]?.see ? 0.9 : 0) : ratio(zt, v.findZone))), it.length));
       const mreq = (k, l) => tryv(() => G['horde/masteryRequired'](k, l), null);
-      gs.push(group('mastery', 'Mastery abaixo do nível 5', it.filter(([, v]) => v.found && v.masteryLevel < 5).map(([k, v]) => { const need = mreq(k, v.masteryLevel); return item('equip:' + k, `Mastery ${v.masteryLevel}/5. Ganha pontos equipado em zona ≥ 75 (bosses e rare loot).${need ? '<br>' + bar(v.masteryPoint, need) + ' pontos para o próximo nível' : ''}`, (v.masteryLevel + (need ? ratio(v.masteryPoint, need) : 0)) / 5); }), it.filter(([, v]) => v.found).length, 'Mastery 1 mantém o item no prestige; 3 mantém o nível.'));
+      gs.push(group('mastery', 'Mastery under level 5', it.filter(([, v]) => v.found && v.masteryLevel < 5).map(([k, v]) => { const need = mreq(k, v.masteryLevel); return item('equip:' + k, `Mastery ${v.masteryLevel}/5. It gains points while equipped in zone 75 or higher (bosses and rare loot).${need ? '<br>' + bar(v.masteryPoint, need) + ' points to the next level' : ''}`, (v.masteryLevel + (need ? ratio(v.masteryPoint, need) : 0)) / 5); }), it.filter(([, v]) => v.found).length, 'Mastery 1 keeps the item when you prestige; mastery 3 also keeps its level.'));
       const he = Object.entries(S.horde.heirloom);
-      gs.push(group('heir', 'Heirlooms nunca encontrados', he.filter(([, h]) => !(h.amount > 0)).map(([k, h]) => { const tw = Object.entries(S.horde.tower).find(([, t]) => (t.heirlooms || []).includes(k)); const z = Math.max(31, h.minZone || 0); return item('heir:' + k, tw ? `Só nas torres: ${link('tower:' + tw[0])}.` : `Rare loot a partir da zona ${z}.<br>${bar(zt, z)} de zona recorde`, tw ? null : ratio(zt, z)); }), he.length));
+      gs.push(group('heir', 'Heirlooms never found', he.filter(([, h]) => !(h.amount > 0)).map(([k, h]) => { const tw = Object.entries(S.horde.tower).find(([, t]) => (t.heirlooms || []).includes(k)); const z = Math.max(31, h.minZone || 0); return item('heir:' + k, tw ? `Only in towers: ${link('tower:' + tw[0])}.` : `Rare loot from zone ${z}.<br>${bar(zt, z)} record zone`, tw ? null : ratio(zt, z)); }), he.length));
       const tw = Object.entries(S.horde.tower);
       const twItems = [];
       for (const [k, t] of tw) {
-        if (!S.unlock[t.unlock]?.see) { const p = unlockProg(t.unlock); twItems.push(item('tower:' + k, `Torre bloqueada: ${secText('unl:' + t.unlock, 'Como destrava')}${p ? '<br>' + p.html : ''}`, p ? p.r * 0.5 : 0)); continue; }
+        if (!S.unlock[t.unlock]?.see) { const p = unlockProg(t.unlock); twItems.push(item('tower:' + k, `Locked tower: ${secText('unl:' + t.unlock, 'How it unlocks')}${p ? '<br>' + p.html : ''}`, p ? p.r * 0.5 : 0)); continue; }
         const next = Object.keys(t.reward).map(Number).sort((a, b) => a - b).find(fl => fl > t.highest);
-        if (next) twItems.push(item('tower:' + k, `Próxima recompensa no andar ${next}: ${secText('tower:' + k, 'Recompensas por andar').split('<br>').find(x => x.startsWith('Andar ' + next + ':'))?.replace(/^Andar \d+: /, '') || ''}<br>${bar(t.highest, next)} andar mais alto`, ratio(t.highest, next)));
+        if (next) twItems.push(item('tower:' + k, `Next reward at floor ${next}: ${secText('tower:' + k, 'Floor rewards').split('<br>').find(x => x.startsWith('Floor ' + next + ':'))?.replace(/^Floor \d+: /, '') || ''}<br>${bar(t.highest, next)} highest floor`, ratio(t.highest, next)));
       }
-      gs.push(group('tower', 'Torres: próximas recompensas', twItems, tw.length));
+      gs.push(group('tower', 'Towers: next rewards', twItems, tw.length));
       const cl = Object.entries(S.horde.fighterClass);
-      gs.push(group('class', 'Quests de classe restantes (battle pass)', cl.filter(([, c]) => !c.unlock || S.unlock[c.unlock]?.see).map(([k, c]) => { const left = ['stat', 'zone', 'level', 'boss'].map(q => [q, (c.quests[q]?.length || 0) - (c.questsCompleted[q] || 0)]); const tot = left.reduce((a, [q, n]) => a + n * (q === 'boss' ? 2 : 1), 0); const all = ['stat', 'zone', 'level', 'boss'].reduce((a, q) => a + (c.quests[q]?.length || 0) * (q === 'boss' ? 2 : 1), 0); return tot > 0 ? item('class:' + k, `Faltam ${left.filter(([, n]) => n > 0).map(([q, n]) => `${n} ${q}`).join(', ')} (= ${tot} níveis de battle pass).`, ratio(all - tot, all)) : null; }).filter(Boolean), cl.length, `Battle pass atual: ${tryv(() => G['horde/battlePassCurrentLevel'], 0)}.`));
+      gs.push(group('class', 'Class quests left (battle pass)', cl.filter(([, c]) => !c.unlock || S.unlock[c.unlock]?.see).map(([k, c]) => { const left = ['stat', 'zone', 'level', 'boss'].map(q => [q, (c.quests[q]?.length || 0) - (c.questsCompleted[q] || 0)]); const tot = left.reduce((a, [q, n]) => a + n * (q === 'boss' ? 2 : 1), 0); const all = ['stat', 'zone', 'level', 'boss'].reduce((a, q) => a + (c.quests[q]?.length || 0) * (q === 'boss' ? 2 : 1), 0); return tot > 0 ? item('class:' + k, `Left: ${left.filter(([, n]) => n > 0).map(([q, n]) => `${n} ${q}`).join(', ')} (= ${tot} battle pass levels).`, ratio(all - tot, all)) : null; }).filter(Boolean), cl.length, `Battle pass now: ${tryv(() => G['horde/battlePassCurrentLevel'], 0)}.`));
       // Classes: areas, zones and final bosses
       const ar = Object.entries(S.horde.area || {});
       gs.push(group('area', 'Horde Classes: areas, zones and final bosses', ar.map(([k, a]) => {
@@ -638,50 +638,50 @@ const LAB = (() => {
       const sg = Object.entries(S.horde.sigil || {}).filter(([, v]) => v.minZone !== null && isFinite(v.minZone ?? 0));
       gs.push(group('sigil', 'Sigils you have not reached yet (Equipment)', sg.filter(([, v]) => (v.minZone ?? 0) > zt).map(([k, v]) => item('sigil:' + k, `Enemies start rolling it at zone ${v.minZone}.<br>${bar(zt, v.minZone)} record zone`, ratio(zt, v.minZone))), sg.length, 'The game does not record which sigils you have seen; this lists the ones above your record zone.'));
       const tr = Object.entries(S.horde.trinket);
-      gs.push(group('trinket', 'Trinkets nunca obtidos', tr.filter(([, t]) => !(t.amount > 0)).map(([k]) => item('trinket:' + k, 'Cai de bosses na Horde (Classes).')), tr.length));
+      gs.push(group('trinket', 'Trinkets never found', tr.filter(([, t]) => !(t.amount > 0)).map(([k]) => item('trinket:' + k, 'Drops from bosses in Horde Classes.')), tr.length));
       return gs;
     },
     farm: () => {
       const gs = [];
       const crops = Object.entries(S.farm.crop);
-      gs.push(group('seed', 'Sementes não liberadas', crops.filter(([, c]) => !c.found).map(([k]) => { const paths = cropPath(k); return item('crop:' + k, paths.join(' <b>ou</b> ') || 'Fonte desconhecida.'); }), crops.length));
+      gs.push(group('seed', 'Seeds not unlocked', crops.filter(([, c]) => !c.found).map(([k]) => { const paths = cropPath(k); return item('crop:' + k, paths.join(' <b>or</b> ') || 'Unknown source.'); }), crops.length));
       const glOf = (c) => { const l = Math.max(c.level, c.levelMax); return Math.min(l, Math.floor(l / 2) + 5, 25); };
       const reg = crops.filter(([, c]) => c.type !== 'special' && c.found);
-      gs.push(group('cropgl', 'Crops abaixo de 25 GL', reg.filter(([, c]) => glOf(c) < 25).map(([k, c]) => item('crop:' + k, `GL desta crop ${glOf(c)}/25 (nível ${Math.max(c.level, c.levelMax)}; 25 GL no nível 40).<br>${bar(glOf(c), 25)}`, glOf(c) / 25)), reg.length, `GL atual da Farm: ${S.meta.globalLevelParts.farm_0 ?? 0}.`));
-      { const ready = crops.filter(([, c]) => c.level >= 4 && c.level > c.levelMax); gs.push(Object.assign(group('prest', 'Prontas para prestigiar acima do recorde', ready.map(([k, c]) => item('crop:' + k, `Nível ${c.level}, recorde ${c.levelMax}: prestigiar agora dá ×${fmt(Math.pow(1.04, c.level - c.levelMax), 3)} em crop gain.`, 1)), crops.length, 'Ação disponível agora, não pendência. Lembre de selecionar cards da crop antes.'), { info: true })); }
+      gs.push(group('cropgl', 'Crops under 25 GL', reg.filter(([, c]) => glOf(c) < 25).map(([k, c]) => item('crop:' + k, `This crop's GL ${glOf(c)}/25 (level ${Math.max(c.level, c.levelMax)}; 25 GL at level 40).<br>${bar(glOf(c), 25)}`, glOf(c) / 25)), reg.length, `Farm GL now: ${S.meta.globalLevelParts.farm_0 ?? 0}.`));
+      { const ready = crops.filter(([, c]) => c.level >= 4 && c.level > c.levelMax); gs.push(Object.assign(group('prest', 'Ready to prestige above their record', ready.map(([k, c]) => item('crop:' + k, `Level ${c.level}, record ${c.levelMax}: prestiging now gives ×${fmt(Math.pow(1.04, c.level - c.levelMax), 3)} crop gain.`, 1)), crops.length, 'Something you can do now, not something missing. Remember to select the crop\'s cards first.'), { info: true })); }
       const fb = Object.entries(S.farm.building);
-      gs.push(group('fbuild', 'Farm buildings que você não tem', fb.filter(([, b]) => !(b.max > 0)).map(([k]) => item('fbuild:' + k, secText('fbuild:' + k, 'Mencionado por') || 'Liberado por upgrade.')), fb.length));
+      gs.push(group('fbuild', 'Farm buildings you do not have', fb.filter(([, b]) => !(b.max > 0)).map(([k]) => item('fbuild:' + k, secText('fbuild:' + k, 'Mentioned by') || 'Unlocked by an upgrade.')), fb.length));
       const cons = Object.entries(S.consumable).filter(([k]) => k.startsWith('farm_'));
-      gs.push(group('fert', 'Fertilizantes não liberados', cons.filter(([, c]) => !c.found).map(([k]) => item('cons:' + k, secText('cons:' + k, 'Mencionado por') || 'Liberado por upgrade.')), cons.length));
+      gs.push(group('fert', 'Fertilizers not unlocked', cons.filter(([, c]) => !c.found).map(([k]) => item('cons:' + k, secText('cons:' + k, 'Mentioned by') || 'Unlocked by an upgrade.')), cons.length));
       return gs;
     },
     gallery: () => {
       const gs = [];
       const colors = S.gallery.color.filter(c => S.currency['gallery_' + c] && str2(c));
-      gs.push(group('color', 'Cores nunca produzidas', colors.filter(c => statT('gallery_' + c) <= 0).map(c => { const i = S.gallery.color.indexOf(c); const from = i < 1 ? 'beauty' : S.gallery.color[i - 1]; const p = tryv(() => G['gallery/conversionPrice'](c), {}); const fromHave = statT('gallery_' + from) > 0; return item('cur:gallery_' + c, `${fromHave ? 'Converter a partir de ' : 'Primeiro produza '}${curLink('gallery_' + from)}. Custo da conversão: ${priceHtml(p)}.`, fromHave ? 0.8 : 0); }), colors.length, 'Cada cor nova costuma liberar upgrades.'));
+      gs.push(group('color', 'Colors never made', colors.filter(c => statT('gallery_' + c) <= 0).map(c => { const i = S.gallery.color.indexOf(c); const from = i < 1 ? 'beauty' : S.gallery.color[i - 1]; const p = tryv(() => G['gallery/conversionPrice'](c), {}); const fromHave = statT('gallery_' + from) > 0; return item('cur:gallery_' + c, `${fromHave ? 'Convert from ' : 'First make '}${curLink('gallery_' + from)}. Conversion cost: ${priceHtml(p)}.`, fromHave ? 0.8 : 0); }), colors.length, 'Each new color usually unlocks upgrades.'));
       const ideas = Object.entries(S.gallery.idea);
-      gs.push(group('idea', 'Ideias não liberadas', ideas.filter(([, v]) => !v.owned).map(([k]) => item('idea:' + k, secText('idea:' + k, 'Mencionado por') || 'Liberada por upgrade.')), ideas.length));
+      gs.push(group('idea', 'Ideas not unlocked', ideas.filter(([, v]) => !v.owned).map(([k]) => item('idea:' + k, secText('idea:' + k, 'Mentioned by') || 'Unlocked by an upgrade.')), ideas.length));
       const sh = Object.entries(S.gallery.shape);
-      gs.push(group('shape', 'Shapes não liberadas', sh.filter(([, v]) => !v.unlocked).map(([k]) => item('shape:' + k, secText('shape:' + k, 'Mencionado por') || 'Liberada por upgrade.')), sh.length));
+      gs.push(group('shape', 'Shapes not unlocked', sh.filter(([, v]) => !v.unlocked).map(([k]) => item('shape:' + k, secText('shape:' + k, 'Mentioned by') || 'Unlocked by an upgrade.')), sh.length));
       return gs;
     },
     cards: () => {
       const gs = [];
       for (const f of Object.keys(S.card.feature)) {
         const cs = Object.entries(S.card.card).filter(([, c]) => c.feature === f);
-        gs.push(group('card-' + f, nm('feat:' + f), cs.filter(([, c]) => !(c.amount > 0)).map(([id, c]) => { const packs = Object.entries(S.card.pack).filter(([, p]) => p.content[id]); const open = packs.filter(([, p]) => !p.unlock || S.unlock[p.unlock]?.see); const best = Math.max(0, ...open.map(([, p]) => p.content[id] / p.cacheWeightTotal * p.amount)); return item('card:' + id, packs.length ? packs.map(([p, pk]) => `${link('pack:' + p)} ${(pk.content[id] / pk.cacheWeightTotal * 100).toFixed(1)}%/carta${pk.unlock && !S.unlock[pk.unlock]?.see ? ' (pack bloqueado)' : ''}`).join(' · ') + (best ? `<br>~${fmt(1 / best, 1)} packs em média para achar` : '') : (secText('card:' + id, 'De onde vem') || 'Sem fonte.'), best ? Math.min(1, best * 5) : 0); }), cs.length));
+        gs.push(group('card-' + f, nm('feat:' + f), cs.filter(([, c]) => !(c.amount > 0)).map(([id, c]) => { const packs = Object.entries(S.card.pack).filter(([, p]) => p.content[id]); const open = packs.filter(([, p]) => !p.unlock || S.unlock[p.unlock]?.see); const best = Math.max(0, ...open.map(([, p]) => p.content[id] / p.cacheWeightTotal * p.amount)); return item('card:' + id, packs.length ? packs.map(([p, pk]) => `${link('pack:' + p)} ${(pk.content[id] / pk.cacheWeightTotal * 100).toFixed(1)}%/card${pk.unlock && !S.unlock[pk.unlock]?.see ? ' (pack bloqueado)' : ''}`).join(' · ') + (best ? `<br>~${fmt(1 / best, 1)} packs on average to find it` : '') : (secText('card:' + id, 'Where it comes from') || 'No source.'), best ? Math.min(1, best * 5) : 0); }), cs.length));
       }
       const cols = Object.entries(S.card.collection);
-      gs.push(group('col', 'Coleções incompletas', cols.filter(([, c]) => c.cacheCards < c.cards.length).map(([k, c]) => item('col:' + k, `${c.cacheCards}/${c.cards.length} cartas. Ao completar: ${secText('col:' + k, 'Bônus ao completar') || '—'}<br>${bar(c.cacheCards, c.cards.length)}`, ratio(c.cacheCards, c.cards.length))), cols.length));
-      if (S.unlock.cardShiny?.see) { const all = Object.values(S.card.card).filter(c => c.feature !== 'event' && c.feature !== 'gem'); gs.push(group('shiny', 'Cards sem versão shiny', Object.entries(S.card.card).filter(([, c]) => c.feature !== 'event' && c.feature !== 'gem' && c.amount > 0 && !c.foundShiny).map(([id]) => item('card:' + id, 'Abra o pack dela (1,5% por carta) ou use o shiny pack (garante uma shiny nova).')), all.length)); }
+      gs.push(group('col', 'Unfinished collections', cols.filter(([, c]) => c.cacheCards < c.cards.length).map(([k, c]) => item('col:' + k, `${c.cacheCards}/${c.cards.length} cards. When complete: ${secText('col:' + k, 'Completion bonus') || '—'}<br>${bar(c.cacheCards, c.cards.length)}`, ratio(c.cacheCards, c.cards.length))), cols.length));
+      if (S.unlock.cardShiny?.see) { const all = Object.values(S.card.card).filter(c => c.feature !== 'event' && c.feature !== 'gem'); gs.push(group('shiny', 'Cards without a shiny', Object.entries(S.card.card).filter(([, c]) => c.feature !== 'event' && c.feature !== 'gem' && c.amount > 0 && !c.foundShiny).map(([id]) => item('card:' + id, 'Open its pack (1.5% per card) or use the shiny pack (it always gives a new shiny).')), all.length)); }
       return gs;
     },
     meta: () => {
       const gs = [];
       const ach = Object.entries(S.achievement);
-      gs.push(group('ach', 'Achievements: próximo nível', ach.filter(([, a]) => a.cap === null || a.level < a.cap).map(([k, a]) => { const v = tryv(() => a.value(), 0), need = tryv(() => a.milestones(a.level), 0); const rel = a.relic?.[a.level]; return item('ach:' + k, `Nível ${a.level}${a.cap ? '/' + a.cap : ''}.${rel ? ` Próximo nível dá a relic ${link('relic:' + rel)}.` : ''}<br>${bar(v, need)}`, ratio(v, need)); }), ach.length, 'Cada nível acelera a geração de gems.'));
+      gs.push(group('ach', 'Achievements: next level', ach.filter(([, a]) => a.cap === null || a.level < a.cap).map(([k, a]) => { const v = tryv(() => a.value(), 0), need = tryv(() => a.milestones(a.level), 0); const rel = a.relic?.[a.level]; return item('ach:' + k, `Level ${a.level}${a.cap ? '/' + a.cap : ''}.${rel ? ` The next level gives the relic ${link('relic:' + rel)}.` : ''}<br>${bar(v, need)}`, ratio(v, need)); }), ach.length, 'Each level makes gems grow faster.'));
       const books = Object.entries(S.school.book);
-      gs.push(group('book', 'Livros que você não tem', books.filter(([, b]) => !b.owned).map(([k, b]) => { const part = S.meta.globalLevelParts[b.feature + '_' + b.subfeature] ?? 0; return item('book:' + k, `${nm('feat:' + b.feature)}: aparece com ${b.minGL} de GL nessa parte.<br>${bar(part, b.minGL)}`, ratio(part, b.minGL)); }), books.length));
+      gs.push(group('book', 'Books you do not have', books.filter(([, b]) => !b.owned).map(([k, b]) => { const part = S.meta.globalLevelParts[b.feature + '_' + b.subfeature] ?? 0; return item('book:' + k, `${nm('feat:' + b.feature)}: shows up at ${b.minGL} GL in that part.<br>${bar(part, b.minGL)}`, ratio(part, b.minGL)); }), books.length));
       const qs = [];
       let qTot = 0;
       for (const [g, gen] of Object.entries(S.general)) for (const [q, qu] of Object.entries(gen.quests)) {
@@ -689,10 +689,10 @@ const LAB = (() => {
         if (qu.stage >= qu.stages.length) continue;
         const locked = (gen.unlock && !S.unlock[gen.unlock]?.see) || (qu.unlock && !S.unlock[qu.unlock]?.see);
         const raw = DATA_GBF[g]?.quests?.[q]?.stages?.[qu.stage];
-        const tasks = qu.stages[qu.stage].tasks.map((t, i) => { const r = evalTask(t); return `${r.ok ? '✓' : '○'} ${esc(raw?.tasks?.[i] || t.name)} <span class="key">(agora: ${typeof r.cur === 'boolean' ? (r.cur ? 'sim' : 'não') : fmt(r.cur)})</span>`; });
-        qs.push(item('quest:' + g + '.' + q, locked ? `Bloqueada: exige ${link('unl:' + (qu.unlock || gen.unlock))}.` : `Estágio ${qu.stage + 1}/${qu.stages.length}${raw?.isChallenge ? ' ⚔ (dentro de uma run)' : ''}:<br>${tasks.join('<br>')}`, locked ? 0 : ratio(qu.stage, qu.stages.length)));
+        const tasks = qu.stages[qu.stage].tasks.map((t, i) => { const r = evalTask(t); return `${r.ok ? '✓' : '○'} ${esc(raw?.tasks?.[i] || t.name)} <span class="key">(now: ${typeof r.cur === 'boolean' ? (r.cur ? 'yes' : 'no') : fmt(r.cur)})</span>`; });
+        qs.push(item('quest:' + g + '.' + q, locked ? `Bloqueada: exige ${link('unl:' + (qu.unlock || gen.unlock))}.` : `Stage ${qu.stage + 1}/${qu.stages.length}${raw?.isChallenge ? ' ⚔ (inside one run)' : ''}:<br>${tasks.join('<br>')}`, locked ? 0 : ratio(qu.stage, qu.stages.length)));
       }
-      gs.push(group('quest', 'Questlines incompletas', qs, qTot));
+      gs.push(group('quest', 'Unfinished questlines', qs, qTot));
       // Museum glyphs
       if (S.unlock.relicMuseum?.see) {
         const gst = tryv(() => G['relic/glyphStats'](), {}) || {};
@@ -839,9 +839,9 @@ const LAB = (() => {
     return `<h3 class="mh">Everything</h3><p class="hint">Closest to complete first; complete rows are struck through at the end. Click a category (or hover it) to see what is missing.</p><div class="tbl tudo"><table><thead><tr><th>Feature</th><th>Category</th><th>Missing</th><th>Progress</th></tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></div>`;
   };
   const missingPage = (tab = 'resumo') => {
-    if (!ok) return '<p>Calculadoras indisponíveis.</p>';
+    if (!ok) return '<p>Calculators are not available.</p>';
     const saveInfo = info();
-    if (!saveInfo) return `<div class="crumbs"><span class="tag">Ferramenta</span></div><h2>O que falta</h2><div class="banner">Carregue seu save no painel à esquerda para ver o que falta em cada feature.</div>`;
+    if (!saveInfo) return `<div class="crumbs"><span class="tag">Tool</span></div><h2>What's missing</h2><div class="banner">Load your save in the left panel to see what is missing in each feature.</div>`;
     if (!TABS.some(t => t[0] === tab)) tab = 'resumo';
     const built = {}; for (const [k] of TABS) if (k !== 'resumo') built[k] = tryv(() => buildTab(k), []);
     const missCount = (k) => built[k].reduce((a, g) => a + (g.info ? 0 : g.items.length), 0);
@@ -863,9 +863,9 @@ const LAB = (() => {
   const KEY = 'gooboo-codex-save';
   const loadSave = (str) => {
     const t = str.trim();
-    let f; try { f = JSON.parse(t[0] === '{' ? t : atob(t)); } catch { throw new Error('Não consegui ler esse texto como save do Gooboo.'); }
-    if (!f || !f.version || !f.timestamp) throw new Error('Isso não parece um save do Gooboo (faltam versão/timestamp).');
-    try { localStorage.setItem(KEY, t); } catch { throw new Error('O navegador bloqueou o armazenamento local, então não dá para carregar o save aqui.'); }
+    let f; try { f = JSON.parse(t[0] === '{' ? t : atob(t)); } catch { throw new Error('This text could not be read as a Gooboo save.'); }
+    if (!f || !f.version || !f.timestamp) throw new Error('This does not look like a Gooboo save (version or timestamp missing).');
+    try { localStorage.setItem(KEY, t); } catch { throw new Error('The browser blocked local storage, so the save cannot be loaded here.'); }
     location.reload();
   };
   const clearSave = () => { try { localStorage.removeItem(KEY); } catch {} location.reload(); };
