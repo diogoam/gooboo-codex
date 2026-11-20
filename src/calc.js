@@ -604,14 +604,14 @@ const LAB = (() => {
       for (const [k, c] of cr) { for (const [n] of Object.entries(c.milestone || {})) { msTot++; if (c.crafted < +n) ms.push(item('craft:' + k, `Next milestone: ${fmt(+n)} crafts (+1 GL).<br>${bar(c.crafted, +n)}${c.unlocked ? '' : ' — recipe still locked'}`, ratio(c.crafted, +n))); } }
       gs.push(group('ms', 'Crafting milestones (+1 GL each)', ms, msTot, `Crafting GL now: ${S.meta.globalLevelParts.village_1 ?? 0} / ${msTot}.`));
       const of = Object.entries(S.village.offering);
-      gs.push(group('offer', 'Offerings not unlocked', of.filter(([, o]) => !S.unlock[o.unlock]?.see).map(([k, o]) => item('offer:' + k, `Exige ${link('unl:' + o.unlock)}: ${secText('unl:' + o.unlock, 'How it unlocks')}`, unlockProg(o.unlock)?.r ?? null)), of.length));
+      gs.push(group('offer', 'Offerings not unlocked', of.filter(([, o]) => !S.unlock[o.unlock]?.see).map(([k, o]) => item('offer:' + k, `Needs ${link('unl:' + o.unlock)}: ${secText('unl:' + o.unlock, 'How it unlocks')}`, unlockProg(o.unlock)?.r ?? null)), of.length));
       return gs;
     },
     horde: () => {
       const gs = [];
       const zt = statT('horde_maxZone');
       const it = Object.entries(S.horde.items);
-      gs.push(group('equip', 'Equipment never found', it.filter(([, v]) => !v.found).map(([k, v]) => item('equip:' + k, v.unlock ? `Exige ${link('unl:' + v.unlock)}.${S.unlock[v.unlock]?.see ? ' (already unlocked: it drops in the Horde)' : ''}` : `Drops from zone ${v.findZone} (chance ${fmt(v.findChance * 100)}% per enemy).<br>${bar(zt, v.findZone)} record zone`, v.unlock ? (S.unlock[v.unlock]?.see ? 0.9 : 0) : ratio(zt, v.findZone))), it.length));
+      gs.push(group('equip', 'Equipment never found', it.filter(([, v]) => !v.found).map(([k, v]) => item('equip:' + k, v.unlock ? `Needs ${link('unl:' + v.unlock)}.${S.unlock[v.unlock]?.see ? ' (already unlocked: it drops in the Horde)' : ''}` : `Drops from zone ${v.findZone} (chance ${fmt(v.findChance * 100)}% per enemy).<br>${bar(zt, v.findZone)} record zone`, v.unlock ? (S.unlock[v.unlock]?.see ? 0.9 : 0) : ratio(zt, v.findZone))), it.length));
       const mreq = (k, l) => tryv(() => G['horde/masteryRequired'](k, l), null);
       gs.push(group('mastery', 'Mastery under level 5', it.filter(([, v]) => v.found && v.masteryLevel < 5).map(([k, v]) => { const need = mreq(k, v.masteryLevel); return item('equip:' + k, `Mastery ${v.masteryLevel}/5. It gains points while equipped in zone 75 or higher (bosses and rare loot).${need ? '<br>' + bar(v.masteryPoint, need) + ' points to the next level' : ''}`, (v.masteryLevel + (need ? ratio(v.masteryPoint, need) : 0)) / 5); }), it.filter(([, v]) => v.found).length, 'Mastery 1 keeps the item when you prestige; mastery 3 also keeps its level.'));
       const he = Object.entries(S.horde.heirloom);
@@ -884,5 +884,56 @@ const LAB = (() => {
     }
   };
   function info() { return GB && GB.live ? { gl: S.meta.globalLevel, live: true } : saveInfo; }
-  return { ok, missingPage, forEntry, bindEntry, loadSave, clearSave, init, info, error: () => bootError, fmt, time };
+
+  // ---------- you have it / not yet (live, from your save) ----------
+  // { ok: true | false | 'part', t: short tag, d: one line of detail } or null when "have it" means nothing for that kind of entry.
+  function status(e){
+    if (!ok || !S || !e) return null;
+    const k = e.k, p = e.id.split(':')[0];
+    const U = n => !n || !!S.unlock[n]?.use;
+    const yes = (t, d) => ({ ok: true, t, d }), no = (t, d) => ({ ok: false, t, d }), part = (t, d) => ({ ok: 'part', t, d });
+    const fx = n => fmt(n, 0);
+    try {
+      switch (p) {
+        case 'unl': { const u = S.unlock[k]; if (!u) return null; return u.use ? yes('Unlocked') : no('Not unlocked yet'); }
+        case 'feat': { const f = S.system.features[k]; if (!f) return null; return U(f.unlock) ? yes('Unlocked') : no('Not unlocked yet'); }
+        case 'pack': { const pk = S.card.pack[k]; if (!pk) return null; return U(pk.unlock) ? yes('You can buy it') : no('Locked', 'See “How to get it” below for the unlock condition.'); }
+        case 'card': { const c = S.card.card[k]; if (!c) return null; return c.amount > 0 ? yes(`You have it (${fx(c.amount)} cop${c.amount === 1 ? 'y' : 'ies'})`, c.foundShiny ? 'Shiny version found too.' : 'Shiny version not found yet.') : no("You don't have it yet"); }
+        case 'col': { const c = S.card.collection[k]; if (!c) return null; const all = (c.cards || []).length, have = (c.cards || []).filter(id => S.card.card[id]?.amount > 0).length; return have >= all ? yes(`Complete (${all} of ${all} cards)`) : have ? part(`${have} of ${all} cards`) : no(`0 of ${all} cards`); }
+        case 'relic': { const r = S.relic.item[k]; if (!r) return null; return r.found ? yes('You have it') : no("You don't have it yet"); }
+        case 'note': { const n = S.note[k]; if (!n) return null; return n.found ? yes('Found') : no('Not found yet'); }
+        case 'book': { const b = S.school.book[k]; if (!b) return null; return b.owned ? yes('Read') : no('Not read yet'); }
+        case 'idea': { const i = S.gallery.idea[k]; if (!i) return null; return i.owned ? yes(`You have it (level ${i.level})`) : no('Not unlocked yet'); }
+        case 'shape': { const sh = S.gallery.shape[k]; if (!sh) return null; return sh.unlocked ? yes('Unlocked') : no('Not unlocked yet'); }
+        case 'crop': { const c = S.farm.crop[k]; if (!c) return null; return c.found ? yes(`Seed unlocked (level ${c.level}, best ${c.levelMax})`) : no('Seed not unlocked yet'); }
+        case 'fbuild': { const b = S.farm.building[k]; if (!b) return null; return b.max > 0 ? yes(`You have ${fx(b.max)}${b.maxPremium ? ` (${fx(b.maxPremium)} premium)` : ''}`) : no("You don't have any yet"); }
+        case 'gene': { const g = S.farm.gene[k]; if (!g) return null; return U(g.unlockNeeded) ? yes('Unlocked') : no('Not unlocked yet'); }
+        case 'cons': { const c = S.consumable[k]; if (!c) return null; return c.found ? yes(`Unlocked (${fx(c.amount)} in stock)`) : no('Not unlocked yet'); }
+        case 'equip': { const it = S.horde.items[k]; if (!it) return null; return it.found ? yes(`Found (mastery ${it.masteryLevel})`) : no('Not found yet'); }
+        case 'trinket': { const t = S.horde.trinket[k]; if (!t) return null; return t.amount > 0 ? yes(`You have it (${fx(t.amount)})`) : no("You don't have it yet"); }
+        case 'heir': { const h = S.horde.heirloom[k]; if (!h) return null; return h.amount > 0 ? yes(`Found ${fx(h.amount)}`) : no('Not found yet'); }
+        case 'class': { const c = S.horde.fighterClass[k]; if (!c) return null; return U(c.unlock) ? yes(`Unlocked (best level ${c.highestLevel ?? 0})`) : no('Not unlocked yet'); }
+        case 'tower': { const t = S.horde.tower[k]; if (!t) return null; return U(t.unlock) ? yes(`Unlocked (best floor ${t.highest ?? 0})`) : no('Not unlocked yet'); }
+        case 'area': { const a = S.horde.area[k]; if (!a) return null; return U(a.unlock) ? yes('Unlocked') : no('Not unlocked yet'); }
+        case 'craft': { const r = S.village.crafting[k]; if (!r) return null; return r.unlocked ? yes(`Unlocked (crafted ${fx(r.crafted)})`) : no('Not unlocked yet'); }
+        case 'offer': { const o = S.village.offering[k]; if (!o) return null; return U(o.unlock) ? yes('Unlocked') : no('Not unlocked yet'); }
+        case 'subject': { const sj = S.school.subject[k]; if (!sj) return null; return U(sj.unlock) ? yes(`Unlocked (grade ${sj.grade})`) : no('Not unlocked yet'); }
+        case 'ach': { const a = S.achievement[k]; if (!a) return null; const cap = a.cap ?? null; return cap !== null && a.level >= cap ? yes(`Complete (level ${a.level} of ${cap})`) : a.level > 0 ? part(`Level ${a.level}${cap !== null ? ` of ${cap}` : ''}`) : no('Not started (level 0)'); }
+        case 'quest': { const [g, q] = k.split('.'); const Q = S.general[g]?.quests?.[q]; if (!Q) return null; const n = (Q.stages || []).length; return Q.stage >= n ? yes(`Complete (${n} of ${n} steps)`) : Q.stage > 0 ? part(`Step ${Q.stage + 1} of ${n}`) : no(`Not started (${n} steps)`); }
+        case 'upg': { const u = S.upgrade.item[k]; if (!u) return null; const cap = u.cap ?? null; if (cap !== null && u.level >= cap) return yes(`Maxed (level ${u.level})`); if (u.level > 0) return yes(`Level ${u.level}${cap !== null ? ` of ${cap}` : ''}`); if ((u.highestLevel || 0) > 0) return part('Not bought this run', `Your best was level ${u.highestLevel}. It resets when you prestige.`); return no('Never bought'); }
+        case 'cur': { const c = S.currency[k]; if (!c) return null; const t = S.stat[k]?.total ?? 0; return t > 0 || c.value > 0 ? yes(`You have ${fmt(c.value)}`, t > 0 ? `${fmt(t)} gained in total.` : '') : no('Never gained yet'); }
+        default: return null;
+      }
+    } catch (err) { return null; }
+  }
+  // farm rare drops: is your base Rare drop chance above the crop's (negative) base chance?
+  function dropCheck(e){
+    if (!ok || !S || !e || !e.id.startsWith('cur:farm_')) return '';
+    const crops = Object.entries(S.farm.crop).map(([n, c]) => [n, c, (c.rareDrop || []).find(r => r.name === e.k)]).filter(x => x[2]);
+    if (!crops.length) return '';
+    const base = S.mult.items.farmRareDropChance?.baseCache ?? 0;
+    const rows = crops.sort((a, b) => b[2].chance - a[2].chance).map(([n, c, r]) => `${link('crop:' + n)} (base chance ${fmt(r.chance)}): ${!c.found ? `✗ you don't have this seed yet. ${secText('crop:' + n, 'How to get it') || ''}` : base + r.chance > 0 ? '✓ drops it' : `✗ your base Rare drop chance needs ${fmt(-r.chance - base)} more`}`);
+    return `<div class="banner own">🌱 Your base Rare drop chance is <b>${fmt(base)}</b> (genes and cards on a crop add to it). A crop drops it only if this plus the crop's base chance is above 0, and only if you have the seed.<br>${rows.join('<br>')}</div>`;
+  }
+  return { ok, status, dropCheck, missingPage, forEntry, bindEntry, loadSave, clearSave, init, info, error: () => bootError, fmt, time };
 })();

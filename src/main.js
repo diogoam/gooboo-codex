@@ -197,7 +197,7 @@
     popWin = w;
     const doc = w.document;
     doc.open();
-    doc.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gooboo Codex</title><style>${CSS_DOC}</style></head><body><div class="wrap"><div class="msgbox">Carregando o Codex…</div></div></body></html>`);
+    doc.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gooboo Codex</title><style>${CSS_DOC}</style></head><body><div class="wrap"><div class="msgbox">Carregando o Codex…</div></div></body></html>`);
     doc.close();
     fontsInto(doc);
     doc.documentElement.setAttribute('data-theme', gameDark() ? 'dark' : 'light');

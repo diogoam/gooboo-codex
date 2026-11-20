@@ -233,8 +233,16 @@ for (const [k, a] of Object.entries(st.achievement)) { const s = safe(() => Stri
 for (const [id, c] of Object.entries(st.card.card)) (c.reward || []).forEach(r => { if (r.type === 'currency' && st.currency[r.name]) src(r.name, `Extra copies of the card ${LL('card:' + id, id)} (instant card) give ${num(typeof r.value === 'function' ? safe(() => r.value(1)) : r.value)} each.`); if (r.type === 'addRareDrop' && st.currency[r.name]) src(r.name, `Rare drop added to farm crops by the card ${LL('card:' + id, id)} while equipped.`); });
 // rare drops: crops & genes
 const cropDrops = {};
-for (const [cr, c] of Object.entries(st.farm.crop)) (c.rareDrop || []).forEach(r => { const k = r.name; if (st.currency[k]) (cropDrops[k] = cropDrops[k] || []).push(LL('crop:' + cr, cr)); });
-for (const [k, l] of Object.entries(cropDrops)) src(k, `Rare drop when harvesting: ${list(l)} (chance grows with crop level and grow time; Rare drop chance, care and genes raise it).`);
+const fmtCh = v => (v < 0 ? '−' : '') + String(+Math.abs(v).toFixed(3));
+for (const [cr, c] of Object.entries(st.farm.crop)) (c.rareDrop || []).forEach(r => { const k = r.name; if (st.currency[k]) (cropDrops[k] = cropDrops[k] || []).push({ l: LL('crop:' + cr, cr), ch: r.chance }); });
+for (const [k, l] of Object.entries(cropDrops)) {
+  l.sort((a, b) => b.ch - a.ch);
+  const neg = l.filter(x => x.ch < 0);
+  src(k, `Rare drop when harvesting: ${list(l.map(x => `${x.l} (base chance ${fmtCh(x.ch)})`))}.`);
+  src(k, neg.length === l.length
+    ? `Every crop has a negative base chance for it, so it never drops until your base ${L('mult:farmRareDropChance')} is higher than that number (${fmtCh(-neg[0].ch)} for ${neg[0].l}, the easiest). Per harvest you get (base chance + your base Rare drop chance) × your Rare drop multipliers. Raise the base first: multipliers do nothing while the sum is below 0.`
+    : `Per harvest you get (base chance + your base ${L('mult:farmRareDropChance')}) × your Rare drop multipliers.${neg.length ? ` The crops with a negative base chance only drop it once your base Rare drop chance passes that number.` : ''}`);
+}
 for (const [g, ge] of Object.entries(st.farm.gene)) (ge.effect || []).forEach(e => { if (e.type === 'addRareDrop' && st.currency[e.name]) src(e.name, `Rare drop on any crop with the gene ${LL('gene:' + g, g)}.`); });
 // special notes
 note('farm_mysteryStone', `No use in v1.6.3 — the game text itself asks "What uses does it have?". It only matters for the questline ${L('quest:grobodal.discoveringTheMystery')}, whose reward is the relic ${L('relic:museumKey')} that unlocks the ${L('concept:museum')}. Upgrading the ${L('gene:mystery')} gene has no effect in this version.`);

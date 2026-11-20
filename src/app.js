@@ -90,10 +90,14 @@ function search(q){
   return scored.sort((a,b) => b[0]-a[0] || a[1].n.localeCompare(b[1].n, undefined, {numeric: true})).map(x => x[1]);
 }
 const listEl = $('list'), countEl = $('count'), qEl = $('q');
+function listMark(e){
+  let st = null; try { st = LAB.status(e); } catch (err) { /* ignore */ }
+  return st ? `<span class="om ${st.ok === true ? 'yes' : st.ok === 'part' ? 'part' : 'no'}" title="${esc(st.t)}">${st.ok === true ? '✓' : st.ok === 'part' ? '◐' : '✗'}</span>` : '';
+}
 function renderList(){
   const res = search(qEl.value); const shown = res.slice(0, 400);
   countEl.textContent = `${res.length.toLocaleString('en-US')} entries${res.length > 400 ? ' · showing 400' : ''}`;
-  listEl.innerHTML = shown.map(e => `<li><button type="button" data-id="${esc(e.id)}"${e.id === currentId ? ' aria-current="true"' : ''}><span class="dot" style="background:${swatch(e) || featColor(e.f)}"></span><span class="nm">${esc(e.n)}</span><span class="ct">${esc(e.c)}</span>${lastHits.has(e.id) ? `<span class="hit"><b>${esc(SEC_SLOT[lastHits.get(e.id).h] ? (SEC_TITLE[slotOf(lastHits.get(e.id).h)[0]] || lastHits.get(e.id).h) : lastHits.get(e.id).h)}:</b> ${esc(lastHits.get(e.id).s)}</span>` : ''}</button></li>`).join('');
+  listEl.innerHTML = shown.map(e => `<li><button type="button" data-id="${esc(e.id)}"${e.id === currentId ? ' aria-current="true"' : ''}><span class="dot" style="background:${swatch(e) || featColor(e.f)}"></span><span class="nm">${esc(e.n)}</span>${listMark(e)}<span class="ct">${esc(e.c)}</span>${lastHits.has(e.id) ? `<span class="hit"><b>${esc(SEC_SLOT[lastHits.get(e.id).h] ? (SEC_TITLE[slotOf(lastHits.get(e.id).h)[0]] || lastHits.get(e.id).h) : lastHits.get(e.id).h)}:</b> ${esc(lastHits.get(e.id).s)}</span>` : ''}</button></li>`).join('');
 }
 listEl.addEventListener('click', ev => { const b = ev.target.closest('button[data-id]'); if (b) go(b.dataset.id); });
 let t; qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(renderList, 80); });
@@ -108,6 +112,20 @@ catsEl.addEventListener('click', ev => { const b = ev.target.closest('button[dat
 const pageEl = $('page'), mainEl = $('main'), appEl = $('app');
 let dirty = false; // o usuário mexeu numa calculadora desta página → não sobrescrever com valores ao vivo
 pageEl.addEventListener('input', () => { dirty = true; });
+function ownHTML(e){
+  let st = null; try { st = LAB.status(e); } catch (err) { /* ignore */ }
+  let drop = ''; try { drop = LAB.dropCheck(e); } catch (err) { /* ignore */ }
+  // a locked pack (or unlock) that opens on the first gain of a farm rare drop: show that drop's live check here too
+  try {
+    if (!drop && st && st.ok === false && /^(pack|unl):/.test(e.id)) {
+      const m = JSON.stringify(e.s).match(/Gain \{\{(cur:farm_[^}]+)\}\} for the first time/);
+      if (m && BY[m[1]]) drop = LAB.dropCheck(BY[m[1]]);
+    }
+  } catch (err) { /* ignore */ }
+  if (!st) return drop;
+  const cls = st.ok === true ? 'yes' : st.ok === 'part' ? 'part' : 'no', ic = st.ok === true ? '✓' : st.ok === 'part' ? '◐' : '✗';
+  return `<div class="own ${cls}" title="Read live from your save"><b>${ic} ${esc(st.t)}</b>${st.d ? ` <span>${esc(st.d)}</span>` : ''}</div>${drop}`;
+}
 function renderEntry(e){
   const fc = featColor(e.f), sw = swatch(e);
   const back = [...(BACK[e.id] || [])].map(id => BY[id]).filter(Boolean).sort((a,b) => a.c.localeCompare(b.c) || a.n.localeCompare(b.n, undefined, {numeric: true}));
@@ -115,6 +133,7 @@ function renderEntry(e){
     <button type="button" class="back-btn" id="toList">← Index</button>
     <div class="crumbs"><span class="tag">${esc(e.c)}</span>${FEAT_NAMES[e.f] ? `<a class="tag f" style="background:${fc}" href="#feat~${esc(e.f)}">${esc(FEAT_NAMES[e.f])}</a>` : ''}</div>
     <h2>${sw ? `<span class="swatch" style="background:${sw}" title="color in the game: ${esc(e.col)}"></span>` : ''}${esc(e.n)}</h2>
+    ${ownHTML(e)}
     <div class="key">internal id: <button type="button" id="copyKey" title="Copy">${esc(e.k)}</button>${e.nui ? ' · descriptive name (the game shows no name for this)' : ''}</div>
     ${e.c === 'Feature' && BY['guide:' + e.k] ? `<div class="banner guide">📘 New here? <a class="x" href="#${tok('guide:' + e.k)}">Read the ${esc(e.n)} guide</a>: the loop, what limits you, what to prioritize and what the helpers measured.</div>` : ''}
     ${(g => g ? `<div class="banner guide">📘 Part of the <b>${esc(g.n)}</b> event. <a class="x" href="#${tok(g.id)}">Read the event guide</a>: what it is, what you'll see, the goal, strategy, bottlenecks and the shop.</div>` : '')(guideFor(e))}
@@ -253,7 +272,7 @@ const liveDot = $('liveDot'), liveTxt = $('liveTxt');
 function refreshStatus(){
   const i = LAB.info();
   if (!LAB.ok || !i) { liveTxt.textContent = 'Game not found'; liveDot.classList.remove('on'); return; }
-  liveTxt.textContent = `Ao vivo · GL ${i.gl}`; liveDot.classList.add('on');
+  liveTxt.textContent = `Live · GL ${i.gl}`; liveDot.classList.add('on');
 }
 // Atualiza a página com os valores atuais do jogo. Não atualiza se você estiver editando uma calculadora.
 function refresh(force){

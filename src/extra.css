@@ -36,3 +36,11 @@ details.back ul.men{columns:1;margin-bottom:8px}
 .guides h3{font:800 20px var(--f-display);margin:20px 0 6px}
 .guides .tile{text-decoration:none;color:inherit}
 .guides .tile span{font:13px var(--f-body);white-space:normal}
+
+.own{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin:6px 0 2px;padding:4px 10px;border-radius:999px;font-size:13px;border:1px solid}
+.own span{font-size:12px;opacity:.85}
+.own.yes{color:#16a34a;border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.12)}
+.own.no{color:#dc2626;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.1)}
+.own.part{color:#ca8a04;border-color:rgba(234,179,8,.5);background:rgba(234,179,8,.12)}
+.banner.own{display:block;border-radius:10px;font-size:13px}
+.om{margin-left:4px;font-size:11px;font-weight:700}.om.yes{color:#16a34a}.om.no{color:#dc2626}.om.part{color:#ca8a04}
