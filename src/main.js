@@ -10,6 +10,7 @@
   // ════════════════════════════════════════════════════════════════════════
 /*__CORE__*/
 /*__DOCKSORT__*/
+/*__HISTORY__*/
 
   const VERSION = '__VERSION__';
   const DATA_HASH = '__DATAHASH__';
@@ -31,7 +32,7 @@
       </span>
     </div>
     <div class="live"><span class="st-dot" id="liveDot"></span><span id="liveTxt">…</span></div>
-    <div class="rail-links"><a href="#missing" class="btn ghost">What's missing (all features)</a></div>
+    <div class="rail-links"><a href="#missing" class="btn ghost">What's missing (all features)</a> <a href="#history" class="btn ghost" title="Where each Global level point came from">Progress log</a></div>
     <div class="search"><input id="q" type="search" placeholder="Search: Scrap, Depth dweller, Torch…" autocomplete="off" aria-label="Search the Codex"></div>
     <div class="cats" id="cats" role="group" aria-label="Filter by type"></div>
     <div class="count" id="count"></div>
@@ -180,7 +181,7 @@
       // ShadowRoot tem getElementById, querySelector e activeElement — o app usa só isso
       showNewVersion(shadow);
       const mb = shadow.getElementById('minBtn'); if (mb) mb.onclick = () => setMin(true);
-      panelApp = mountCodex(shadow, { DATA: d.glossary, GBF: d.gbf, META: d.meta, COLORS: d.colors, GB, isPopup: false, onPopout: route => { openPopup(route); closePanel(); }, onClose: closePanel });
+      panelApp = mountCodex(shadow, { DATA: d.glossary, GBF: d.gbf, META: d.meta, COLORS: d.colors, GB, HIST: HISTORY, isPopup: false, onPopout: route => { openPopup(route); closePanel(); }, onClose: closePanel });
     } catch (e) {
       console.error('[Codex]', e);
       message(root, `${e.message}<br><br>The data lives at <b>github.com/diogoam/gooboo-codex</b> (data folder). <button type="button" class="btn" id="retry">Try again</button>`);
@@ -207,7 +208,7 @@
       if (!GB) { doc.body.innerHTML = '<div class="wrap"><div class="msgbox">The game has not finished loading.</div></div>'; return; }
       doc.body.innerHTML = SHELL(true);
       showNewVersion(doc);
-      popApp = mountCodex(doc, { DATA: d.glossary, GBF: d.gbf, META: d.meta, COLORS: d.colors, GB, isPopup: true, route });
+      popApp = mountCodex(doc, { DATA: d.glossary, GBF: d.gbf, META: d.meta, COLORS: d.colors, GB, HIST: HISTORY, isPopup: true, route });
       w.addEventListener('beforeunload', () => { popApp = null; });
     } catch (e) {
       doc.body.innerHTML = `<div class="wrap"><div class="msgbox">${String(e.message).replace(/</g, '&lt;')}</div></div>`;

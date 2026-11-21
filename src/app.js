@@ -59,7 +59,7 @@ const guideFor = e => {
   if (!g) { const from = [...(BACK[e.id] || [])].filter(id => id.startsWith('event:')); if (from.length === 1) g = from[0].slice(6); }
   return g ? BY['event:' + g] : null;
 };
-const TOOLS = [{ id: 'guides', n: 'Guides', c: 'Tool', words: 'guides guias events eventos beginner iniciante concepts conceitos' }, { id: 'missing', n: "What's missing", c: 'Tool', words: "what's missing o que falta closest to getting mais perto de sair everything tudo notes unlocks upgrades cards relics questlines achievements" }];
+const TOOLS = [{ id: 'guides', n: 'Guides', c: 'Tool', words: 'guides guias events eventos beginner iniciante concepts conceitos' }, { id: 'history', n: 'Progress log', c: 'Tool', words: 'progress log history histórico where did my level come from global level gl went up recent changes timeline' }, { id: 'missing', n: "What's missing", c: 'Tool', words: "what's missing o que falta closest to getting mais perto de sair everything tudo notes unlocks upgrades cards relics questlines achievements" }];
 const snip = (raw, nq) => {
   const i = norm(raw).indexOf(nq); if (i < 0) return '';
   const a = Math.max(0, i - 40), b = Math.min(raw.length, i + nq.length + 60);
@@ -195,7 +195,7 @@ function renderHome(){
     <h2>Gooboo Codex</h2>
     <p>Every term in the game, named as the game shows it: what it is, where it comes from, how it unlocks and what changes its value. Click any underlined name to go there.</p>
     ${LAB.ok ? `<div class="banner">${info && info.live ? `Reading <b>your live game</b> (GL ${info.gl}). Every currency, stat and upgrade has a calculator; features have the run planner. The Codex only reads your game and never changes anything.` : 'Game not found.'}</div>` : ''}
-    <div class="chips"><a href="#guides" title="Beginner guides: every feature, every event and the core concepts">📘 Guides</a><a href="#concept~prestige" title="One page per prestige: formula, what resets and what stays, your live gain and when to prestige">⟳ Prestige</a><a href="#concept~cryolab" title="Cryo lab: what freezing pays, days to each level and where it gives the most Global level">❄ Cryo lab</a><a href="#guides" data-events="1" title="Event guides: Cinders, Bloom, Weather chaos, Summer festival, Night hunt, Snowdown, Merchant, Casino, Bank">🎪 Events</a></div>
+    <div class="chips"><a href="#guides" title="Beginner guides: every feature, every event and the core concepts">📘 Guides</a><a href="#concept~prestige" title="One page per prestige: formula, what resets and what stays, your live gain and when to prestige">⟳ Prestige</a><a href="#concept~cryolab" title="Cryo lab: what freezing pays, days to each level and where it gives the most Global level">❄ Cryo lab</a><a href="#history" title="What changed in your game and where each Global level point came from">📈 Progress log</a><a href="#guides" data-events="1" title="Event guides: Cinders, Bloom, Weather chaos, Summer festival, Night hunt, Snowdown, Merchant, Casino, Bank">🎪 Events</a></div>
     <div class="start" style="margin-top:14px"><a href="#missing">What's missing in each feature (notes, unlocks, upgrades, cards…)</a></div>
     <h3 style="font:800 20px var(--f-display);margin:20px 0 6px">Plan the next run</h3>
     <div class="start">${['mining','village','horde','farm','gallery'].map(f => `<a href="#feat~${f}">${esc(FEAT_NAMES[f] || f)}</a>`).join('')}</div>
@@ -216,6 +216,11 @@ function renderGuides(){
     <h3 id="g-events">🎪 Events</h3><div class="grid">${evs.map(tile).join('')}</div>
     <h3>🧭 Concepts</h3><div class="grid">${cons.map(tile).join('')}</div></div>`;
   $('toList').onclick = () => appEl.classList.remove('reading');
+}
+function renderHistory(){
+  pageEl.innerHTML = '<button type="button" class="back-btn" id="toList">← Index</button>' + LAB.historyPage();
+  $('toList').onclick = () => appEl.classList.remove('reading');
+  const c = $('histClear'); if (c) c.onclick = () => { if (!c.dataset.sure) { c.dataset.sure = '1'; c.textContent = 'Click again to clear the whole log'; return; } env.HIST && env.HIST.clear(); renderHistory(); };
 }
 let missTab = lsGet('miss') || 'resumo';
 function renderMissing(){
@@ -242,6 +247,7 @@ function show(id, push = true){
   lsSet('route', id || '');
   $('backBtn').disabled = !hist.length;
   if (id === 'missing') { currentId = null; renderMissing(); appEl.classList.add('reading'); mainEl.scrollTop = 0; return; }
+  if (id === 'history') { currentId = null; renderHistory(); appEl.classList.add('reading'); mainEl.scrollTop = 0; return; }
   if (id === 'guides') { currentId = null; renderGuides(); appEl.classList.add('reading'); mainEl.scrollTop = 0; return; }
   const e = BY[id];
   currentId = e ? id : null;
@@ -286,6 +292,7 @@ function refresh(force){
   const openDetails = [...pageEl.querySelectorAll('details')].map(d => d.open);
   if (currentRoute === 'missing') renderMissing();
   else if (currentRoute === 'guides') renderGuides();
+  else if (currentRoute === 'history') renderHistory();
   else if (currentId) renderEntry(BY[currentId]);
   else renderHome();
   pageEl.querySelectorAll('details').forEach((d, i) => { if (openDetails[i] !== undefined) d.open = openDetails[i]; });
@@ -297,6 +304,6 @@ LAB.init(env.GBF, env.META);
 activeCat = lsGet('cat') || null; if (activeCat && !cats.includes(activeCat)) activeCat = null;
 renderCats(); renderList(); refreshStatus();
 const startRoute = env.route !== undefined ? env.route : (lsGet('route') || null);
-show(startRoute && (startRoute === 'missing' || startRoute === 'guides' || BY[startRoute]) ? startRoute : null, false);
+show(startRoute && (startRoute === 'missing' || startRoute === 'guides' || startRoute === 'history' || BY[startRoute]) ? startRoute : null, false);
 return { show, refresh, back, get route(){ return currentRoute; } };
 }

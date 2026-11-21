@@ -105,7 +105,7 @@ const LAB = (() => {
     const formula = now.pureMult ? `total multiplier ${mulx(sim.mult)}` : `(${fmt(sim.base)}) × ${fmt(sim.mult, 3)} + ${fmt(sim.bonus)}`;
     return `<section class="lab" data-mult="${esc(name)}">
       <h3>Calculator · ${esc(title || BY['mult:' + name]?.n || name)}</h3>
-      <div class="kpis"><div><small>Value now</small><b>${fmt(now.val)}</b></div>${changed ? `<div class="sim"><small>Simulated</small><b>${fmt(sim.val)}</b><span>${pct(sim.val / (now.val || 1))}</span></div>` : ''}<div><small>Formula</small><span class="num">${formula}</span></div>${!sim.pureMult && sim.mult ? `<div><small>Value of +1 base</small><b>${pct(total(it, { ...overlay, __probe: { type: 'base', value: 1 } }).val / (sim.val || 1))}</b><span>um ×1.10 vale +10%</span></div>` : ''}</div>
+      <div class="kpis"><div><small>Value now</small><b>${fmt(now.val)}</b></div>${changed ? `<div class="sim"><small>Simulated</small><b>${fmt(sim.val)}</b><span>${pct(sim.val / (now.val || 1))}</span></div>` : ''}<div><small>Formula</small><span class="num">${formula}</span></div>${!sim.pureMult && sim.mult ? `<div><small>Value of +1 base</small><b>${pct(total(it, { ...overlay, __probe: { type: 'base', value: 1 } }).val / (sim.val || 1))}</b><span>a ×1.10 is worth +10%</span></div>` : ''}</div>
       ${sugg.length ? `<h4>Next level that raises this value the most</h4><div class="tbl"><table><thead><tr><th>Upgrade</th><th>Level</th><th>+1 level</th><th>Next level cost</th><th></th></tr></thead><tbody>${sugg.slice(0, 12).map(s => `<tr class="${s.req ? '' : 'dim'}"><td>${link('upg:' + s.k)}${s.req ? '' : ' <span class="key">(still locked)</span>'}</td><td class="num">${s.L}${s.u.cap !== null ? '/' + s.u.cap : ''}</td><td class="num ${s.r > 1.0001 ? 'up' : ''}">${pct(s.r)}</td><td class="num">${Object.entries(s.price).map(([c, v]) => fmt(v) + ' ' + curLink(c)).join(' + ')}</td><td class="nowrap"><button type="button" class="st" data-up="${esc(s.k)}" data-d="-1" aria-label="less">−</button><button type="button" class="st" data-up="${esc(s.k)}" data-d="1" aria-label="more">+</button></td></tr>`).join('')}</tbody></table></div>` : ''}
       ${rows.length ? `<h4>Where the value comes from (${rows.length} sources)</h4><div class="tbl"><table><thead><tr><th>Source</th><th>Type</th><th>Value</th><th>Share of the total</th></tr></thead><tbody>${rows.map(r => `<tr><td>${srcLabel(r.key).html}</td><td>${r.type}</td><td class="num">${r.type === 'mult' ? mulx(r.value) : (r.value >= 0 ? '+' : '') + fmt(r.value)}</td><td class="num">${r.imp ? mulx(r.imp) : '—'}</td></tr>`).join('')}</tbody></table></div><p class="hint">"Share of the total" = how much the final value would drop without this source (×2 = half without it). Use the − / + buttons to try other levels; nothing changes in your game.</p>` : `<p class="hint">No active source${saveInfo ? '' : ' in a fresh example game — load your save'}.</p>`}
       ${changed ? `<button type="button" class="reset" data-reset="${esc(name)}">Undo the simulation</button>` : ''}
@@ -222,7 +222,7 @@ const LAB = (() => {
     const avg = s.F / s.T, nextH = faithAfter(s.F, s.g, s.C, 3600) - s.F;
     return `<section class="lab" data-f="faith"><h3>Calculator · Faith → Blessing</h3>
       <div class="fields">${field('faith-F', 'Faith now', s.F)}${field('faith-C', 'Faith capacity', s.C)}${field('faith-g', 'Faith gain per second', s.g)}${field('faith-T', 'Hours of run so far', s.T)}${field('faith-H', 'Try for (hours)', s.H)}</div>
-      <div class="kpis"><div><small>Blessing if you prestige now</small><b>${fmt(s.F)}</b></div><div><small>In ${fmt(s.H)} h</small><b>${fmt(after)}</b></div><div><small>Next hour vs average</small><b class="${nextH > avg ? 'up' : 'down'}">${fmt(nextH)}</b><span>média ${fmt(avg)}/h</span></div></div>
+      <div class="kpis"><div><small>Blessing if you prestige now</small><b>${fmt(s.F)}</b></div><div><small>In ${fmt(s.H)} h</small><b>${fmt(after)}</b></div><div><small>Next hour vs average</small><b class="${nextH > avg ? 'up' : 'down'}">${fmt(nextH)}</b><span>average ${fmt(avg)}/h</span></div></div>
       ${advice([
         ['How it works', `Blessing = the Faith you hold. Above the cap, gain drops to ×0.9, then ×0.81, ×0.73… at each multiple of the cap. You are now at step ${Math.floor(s.F / s.C)} (real gain ${mulx(Math.floor(s.F / s.C) ? 0.9 * Math.pow(0.9, Math.floor(s.F / s.C) - 1) : 1)}).`],
         ['What to change', `In the next ${fmt(s.H)} h: +50% <b>Faith gain</b> rende ${fmt(gUp)}; +50% de <b>Faith capacity</b> rende ${fmt(cUp)}. ${gUp >= cUp ? 'Right now, more gain is worth more' : 'Right now, more capacity is worth more'} (Church, Mosque, Lighthouse and the Religion policy give gain; Temple, Lost pages, Holy book and Worship give capacity).`],
@@ -935,5 +935,61 @@ const LAB = (() => {
     const rows = crops.sort((a, b) => b[2].chance - a[2].chance).map(([n, c, r]) => `${link('crop:' + n)} (base chance ${fmt(r.chance)}): ${!c.found ? `✗ you don't have this seed yet. ${secText('crop:' + n, 'How to get it') || ''}` : base + r.chance > 0 ? '✓ drops it' : `✗ your base Rare drop chance needs ${fmt(-r.chance - base)} more`}`);
     return `<div class="banner own">🌱 Your base Rare drop chance is <b>${fmt(base)}</b> (genes and cards on a crop add to it). A crop drops it only if this plus the crop's base chance is above 0, and only if you have the seed.<br>${rows.join('<br>')}</div>`;
   }
-  return { ok, status, dropCheck, missingPage, forEntry, bindEntry, loadSave, clearSave, init, info, error: () => bootError, fmt, time };
+
+  // ---------- Progress log (1.10): de onde veio cada ponto de Global level ----------
+  const historyPage = () => {
+    const H = env.HIST;
+    const head = `<div class="crumbs"><span class="tag">Tool</span></div><h2>Progress log</h2>`;
+    if (!H || !ok) return head + '<div class="banner">The progress log needs the live game.</div>';
+    const ev = H.events().slice().reverse();
+    const glName = p => esc(GB.en?.globalLevel?.[p] || p);
+    const D = (t, o) => new Date(t).toLocaleString('en-GB', o);
+    const hm = t => D(t, { hour: '2-digit', minute: '2-digit' });
+    const day = t => D(t, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const featOf = k => k.replace(/_prestigeCount$/, '');
+    const nm = (id, k) => BY[id] ? link(id) : esc(k);
+    const cause = it => {
+      const ab = it.a !== undefined ? ` <span class="num">${fmt(it.a, 0)} → ${fmt(it.b, 0)}</span>` : '';
+      switch (it.k) {
+        case 'depth': return `Record depth in ${link('feat:mining', it.id.endsWith('1') ? 'Mining (2nd mine)' : 'Mining')}${ab}`;
+        case 'zone': return `Highest ${link('feat:horde', 'Horde')} zone${ab}`;
+        case 'beauty': return `${link('cur:gallery_beauty', 'Beauty')} record (log₄)${ab}`;
+        case 'crop': return `${nm('crop:' + it.id, it.id)} level${ab}${it.g > 0 ? ` <b>(+${it.g} GL)</b>` : ''}`;
+        case 'house': return `${nm('upg:' + it.id, it.id)} level${ab}`;
+        case 'mile': return `${nm('craft:' + it.id, it.id)} crafting milestones${ab}`;
+        case 'bp': { const [c, q] = it.id.split('.'); return `${nm('class:' + c, c)} quest <i>${esc(q)}</i> completed${ab}`; }
+        case 'ach': return `Achievement ${nm('ach:' + it.id, it.id)} level${ab}`;
+        case 'pres': return `${nm('feat:' + featOf(it.id), featOf(it.id))} prestige #${fmt(it.b, 0)}`;
+        case 'relic': return `New relic: ${nm('relic:' + it.id, it.id)}`;
+        case 'note': return `New note: ${nm('note:' + it.id, it.id)}`;
+        case 'card': return `New card: ${nm('card:' + it.id, it.id)}`;
+        case 'shiny': return `Shiny card: ${nm('card:' + it.id, it.id)}`;
+        case 'book': return `New book: ${nm('book:' + it.id, it.id)}`;
+        case 'unl': return `Unlocked: ${nm('unl:' + it.id, it.id)}`;
+        default: return esc(it.k + ' ' + it.id);
+      }
+    };
+    // somas por janela de tempo
+    const now = Date.now();
+    const win = ms => { const o = {}; let tot = 0; for (const e of ev) if (e.t >= now - ms) for (const [p, [a, b]] of Object.entries(e.parts)) { o[p] = (o[p] || 0) + (b - a); tot += b - a; } return { o, tot }; };
+    const kpi = (lbl, ms) => { const w = win(ms); const top = Object.entries(w.o).sort((x, y) => y[1] - x[1]).map(([p, n]) => `${glName(p)} +${n}`).join(', '); return `<div><small>${lbl}</small><b>+${w.tot} GL</b><span>${top || 'nothing yet'}</span></div>`; };
+    const since = H.since();
+    let body = '';
+    if (!ev.length) body = `<div class="banner">Nothing recorded yet. The Codex checks your game every 20 seconds (also with the panel closed and the game minimized) and lists here every change: each Global level point with what caused it, plus new achievements, relics, notes, cards, books, unlocks and prestiges.</div>`;
+    let lastDay = '';
+    for (const e of ev.slice(0, 300)) {
+      const dd = day(e.t); if (dd !== lastDay) { body += `<h3 class="mh">${esc(dd)}</h3>`; lastDay = dd; }
+      const gl = e.gl[1] - e.gl[0];
+      const when = e.away ? `${esc(day(e.t0) === dd ? hm(e.t0) : day(e.t0) + ' ' + hm(e.t0))} – ${hm(e.t)} <span class="tag">while the game was closed</span>` : hm(e.t);
+      const byPart = {}; const other = [];
+      for (const it of e.items) (it.p && e.parts[it.p] ? (byPart[it.p] = byPart[it.p] || []) : other).push(it);
+      const partsHTML = Object.entries(e.parts).map(([p, [a, b]]) => `<li><b>${glName(p)}</b> <span class="num">${a} → ${b}</span> <b class="up">+${b - a} GL</b>${(byPart[p] || []).length ? `<ul>${byPart[p].slice(0, 30).map(it => `<li>${cause(it)}</li>`).join('')}</ul>` : ''}</li>`).join('');
+      const otherHTML = other.length ? `<li class="hint">Also:<ul>${other.slice(0, 40).map(it => `<li>${cause(it)}</li>`).join('')}${other.length > 40 ? `<li class="hint">… and ${other.length - 40} more</li>` : ''}</ul></li>` : '';
+      body += `<div class="hist-ev"><div class="hist-h"><span class="num">${when}</span>${gl ? ` <b>GL ${e.gl[0]} → ${e.gl[1]}</b> <b class="up">+${gl}</b>` : ''}</div><ul>${partsHTML}${otherHTML}</ul></div>`;
+    }
+    return head + `<p class="hint">What changed in your game and why your Global level went up, newest first. Recording started ${since ? esc(day(since) + ' ' + hm(since)) : 'now'}: the game keeps no history of its own, so nothing before that can be shown. The Codex only reads your game.</p>
+      <div class="kpis"><div><small>Global level now</small><b>${S.meta.globalLevel}</b></div>${kpi('Last 24 hours', 864e5)}${kpi('Last 7 days', 6048e5)}${kpi('Last 30 days', 2592e6)}</div>
+      ${body}${ev.length ? '<p style="margin-top:16px"><button type="button" class="btn ghost" id="histClear">Clear the log</button></p>' : ''}`;
+  };
+  return { ok, status, dropCheck, missingPage, historyPage, forEntry, bindEntry, loadSave, clearSave, init, info, error: () => bootError, fmt, time };
 })();
