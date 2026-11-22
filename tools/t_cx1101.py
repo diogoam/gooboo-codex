@@ -1,0 +1,43 @@
+import json, re
+from playwright.sync_api import sync_playwright
+SAVE=open('/mnt/user-data/uploads/7b56db8e-Gooboo_261103.txt').read().strip()
+SCRIPT=open('/home/claude/gooboo-codex/dist/gooboo-codex.user.js').read()
+DATA=open('/home/claude/gooboo-codex/data/codex-data.json').read()
+R=[]
+def ok(n,c,x=''): R.append((n,bool(c))); print(('PASS' if c else 'FAIL'),n,x)
+with sync_playwright() as p:
+    b=p.chromium.launch(); ctx=b.new_context(viewport={'width':1500,'height':950})
+    ctx.add_init_script("localStorage.setItem('goobooSavefile',%s);"%json.dumps(SAVE))
+    ctx.route(re.compile(r'.*(raw\.githubusercontent|jsdelivr).*codex-data\.json.*'),lambda r:r.fulfill(status=200,body=DATA,content_type='application/json'))
+    ctx.route('**/codex.user.js',lambda r:r.fulfill(status=200,body=SCRIPT,content_type='text/javascript'))
+    pg=ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
+    pg.goto('http://localhost:8765/gooboo/'); pg.wait_for_function("document.querySelector('#app')?.__vue__?.$store?.state?.system?.playerId",timeout=60000)
+    pg.evaluate("""()=>{const s=document.querySelector('#app').__vue__.$store;window.__cx=[];for(const f of ['dispatch','commit']){const o=s[f].bind(s);s[f]=(...a)=>{if((new Error().stack||'').includes('codex.user.js'))window.__cx.push(f+':'+a[0]);return o(...a)}}}""")
+    pg.add_script_tag(url='http://localhost:8765/codex.user.js'); pg.wait_for_timeout(3000)
+    G=pg.evaluate("""()=>{const S=document.querySelector('#app').__vue__.$store.state;return {bl:S.achievement.horde_blood.level, tr:S.upgrade.item.horde_transfusion.persistent, ps:S.upgrade.item.horde_protectiveShell.persistent, bs:S.upgrade.item.horde_bloodStorage.persistent, dd:S.upgrade.item.mining_depthDweller.persistent, sp:S.achievement.mining_maxDepthSpeedrun.level}}""")
+    print(G)
+    pg.click('#ga-dock .ga-chip:has-text("Codex")'); pg.wait_for_timeout(2500)
+    sr="document.querySelector('#gooboo-codex').shadowRoot"
+    def go(id):
+        pg.evaluate(f"(()=>{{const a=document.createElement('a');a.href='#'+{json.dumps(id.replace(':','~'))};{sr}.querySelector('#page').appendChild(a);a.click()}})()"); pg.wait_for_timeout(500)
+        return pg.evaluate(f"{sr}.querySelector('#page').innerText")
+    t=go('ach:horde_blood'); print(t[t.find('What each level'):][:900])
+    ok('vampire table', 'What each level gives' in t)
+    ok('vampire lvl4 transfusion', re.search(r'4\s+\S+\s+keeps Transfusion',t) is not None)
+    ok('vampire lvl9 blood storage listed', 'Blood storage' in t or 'Blood Storage' in t)
+    ok('your level = game', f"YOUR LEVEL\n{G['bl']}" in t or f"Your level\n{G['bl']}" in t)
+    t=go('upg:horde_transfusion'); print(t[:400])
+    ok('transfusion banner matches game', ('Kept when you prestige' in t) == bool(G['tr']) and ('Vampire level 4' in t))
+    t=go('upg:horde_bloodStorage'); ok('blood storage banner matches', ('Goes back to 0 when you prestige until you reach' in t) == (not G['bs']) and 'Vampire level 9' in t, t[:300])
+    t=go('upg:mining_depthDweller'); ok('depth dweller banner', ('Kept when you prestige' in t) == bool(G['dd']), t[:300]); ok('reset line fixed', 'Goes back to 0 when you prestige this feature.' not in t and 'thanks to an achievement' in t)
+    t=go('ach:gallery_highestTierIdea'); ok('gallery idea reward shown', 'unlocks the idea' in t or 'relic' in t, t[t.find('What each'):][:400])
+    t=go('upg:mining_scrapGain') if False else ''
+    pg.evaluate(f"{sr}.querySelector('a[href=\"#missing\"]').click()"); pg.wait_for_timeout(1500)
+    pg.evaluate(f"{sr}.querySelector('[data-tab=goals]').click()"); pg.wait_for_timeout(1500)
+    t=pg.evaluate(f"{sr}.querySelector('#page').textContent"); print([l for l in t.split(chr(10)) if 'reward' in l.lower()][:8]); ok('goals show keeps reward', 'keeps ' in t and 'when you prestige' in t)
+    pt=re.findall(r'\b(você|não|nível|ainda|exige|bloqueado)\b',t,re.I); ok('no Portuguese',not pt,str(pt))
+    ok('0 dispatches', not pg.evaluate("window.__cx"))
+    ok('no errors', not errs, str(errs[:3]))
+    go('ach:horde_blood'); pg.screenshot(path='/home/claude/t/ach.png')
+    b.close()
+print(sum(c for _,c in R),'/',len(R))

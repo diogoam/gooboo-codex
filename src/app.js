@@ -115,6 +115,7 @@ pageEl.addEventListener('input', () => { dirty = true; });
 function ownHTML(e){
   let st = null; try { st = LAB.status(e); } catch (err) { /* ignore */ }
   let drop = ''; try { drop = LAB.dropCheck(e); } catch (err) { /* ignore */ }
+  try { drop = (LAB.topBanner(e) || '') + drop; } catch (err) { /* ignore */ }
   // a locked pack (or unlock) that opens on the first gain of a farm rare drop: show that drop's live check here too
   try {
     if (!drop && st && st.ok === false && /^(pack|unl):/.test(e.id)) {
@@ -141,6 +142,8 @@ function renderEntry(e){
     ${appearsHTML(e, back)}`;
   $('copyKey').onclick = ev => { navigator.clipboard?.writeText(e.k).then(() => ev.target.textContent = 'copied ✓', () => {}); };
   $('toList').onclick = () => { appEl.classList.remove('reading'); };
+  // the generated text says every upgrade goes back to 0; fix that line when an achievement keeps (or can keep) this one
+  try { const kept = LAB.keptState(e); if (kept !== null) pageEl.querySelectorAll('section.s li').forEach(li => { if (li.textContent.trim() === 'Goes back to 0 when you prestige this feature.') li.textContent = kept ? 'Kept when you prestige, thanks to an achievement (see the top of the page).' : 'Goes back to 0 when you prestige this feature, until you reach the achievement level shown at the top of the page.'; }); } catch (err) { /* ignore */ }
   try { LAB.bindEntry(pageEl); } catch (err) { console.warn('[Codex]', err); }
 }
 // Order (decided with the player): What it is (game text inside) → How to get it → What it does (+ specific sections)

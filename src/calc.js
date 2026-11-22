@@ -444,6 +444,39 @@ const LAB = (() => {
     </section>${p.calc()}`;
   }
 
+  // ---------- achievement rewards (1.10.1): relics, upgrades kept on prestige, Gallery ideas ----------
+  // Read live from the game: achievement.relic[i] and achievement.reward[i] are given when level i+1 is reached.
+  const rewardHTML = (r) => r.type === 'keepUpgrade' ? `keeps ${link('upg:' + r.name)} when you prestige` : r.type === 'galleryIdea' ? `unlocks the idea ${link('idea:' + r.name)}` : `${esc(r.type)} ${esc(r.name)}`;
+  const achRewards = (a, lvl) => { const i = lvl - 1, out = []; if (a.relic?.[i]) out.push(`relic ${link('relic:' + a.relic[i])}`); for (const r of a.reward?.[i] || []) out.push(rewardHTML(r)); return out; };
+  const achRewardLevels = (a) => [...new Set([...Object.keys(a.relic || {}), ...Object.keys(a.reward || {})].map(n => +n + 1))].sort((x, y) => x - y);
+  let KEEP = null; // upgrade key -> [{ ach, lvl }]
+  const keepIndex = () => { if (KEEP) return KEEP; KEEP = {}; for (const [k, a] of Object.entries(S.achievement)) for (const [i, rs] of Object.entries(a.reward || {})) for (const r of rs) if (r.type === 'keepUpgrade') (KEEP[r.name] = KEEP[r.name] || []).push({ ach: k, lvl: +i + 1 }); return KEEP; };
+  function achCalc(k) {
+    const a = S.achievement[k]; if (!a) return '';
+    const rl = achRewardLevels(a);
+    const want = L => L <= 3 || Math.abs(L - (a.level + 1)) <= 1 || rl.includes(L);
+    const top = Math.min(a.cap ?? Infinity, Math.max(a.level + 2, 8, ...rl));
+    const v = tryv(() => a.value(), 0);
+    const rows = [];
+    for (let L = 1; L <= top; L++) {
+      if (!want(L)) continue;
+      const need = tryv(() => a.milestones(L - 1), null), rw = achRewards(a, L), got = a.level >= L;
+      rows.push(`<tr class="${got ? '' : 'dim'}${L === a.level + 1 ? ' best' : ''}"><td class="nowrap">${got ? '✓' : '✗'} ${L}</td><td class="num">${fmt(need)}</td><td>${rw.length ? rw.join('<br>') : '<span class="key">only the gem bonus</span>'}</td></tr>`);
+    }
+    const nxt = rl.find(L => L > a.level);
+    return `<section class="lab"><h3>What each level gives (live)</h3>
+      <div class="kpis"><div><small>Your level</small><b>${a.level}${a.cap !== null ? ' / ' + a.cap : ''}</b></div><div><small>Value now</small><b>${fmt(v)}</b></div>${nxt ? `<div><small>Next permanent reward</small><b>Level ${nxt}</b><span>${achRewards(a, nxt).map(x => x.replace(/<[^>]+>/g, '')).join(', ')} · goal ${fmt(tryv(() => a.milestones(nxt - 1), 0))}</span></div>` : '<div><small>Next permanent reward</small><b>none left</b></div>'}</div>
+      <div class="tbl"><table><thead><tr><th>Level</th><th>Goal</th><th>What it gives for good</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+      <p class="hint">${a.secret ? 'Secret achievement: no gem bonus.' : 'Every level also makes gems grow 1% faster.'} "Keeps X when you prestige" means that upgrade no longer goes back to 0 at that feature's prestige. Levels that give only the gem bonus are hidden after level 3, except the ones next to yours.</p></section>`;
+  }
+  function keepCalc(k) {
+    const u = S.upgrade.item[k]; if (!u) return '';
+    if (u.persistentDefault) return `<div class="banner own">✓ This upgrade is always kept when you prestige.</div>`;
+    const src = keepIndex()[k] || []; if (!src.length) return '';
+    const lines = src.map(({ ach, lvl }) => { const a = S.achievement[ach]; const have = a && a.level >= lvl; return `${src.length > 1 ? (have ? '✓ ' : '✗ ') : ''}${link('ach:' + ach)} level ${lvl}${have ? '' : ` (you are at level ${a?.level ?? 0}; ${bar(tryv(() => a.value(), 0), tryv(() => a.milestones(lvl - 1), 0))})`}`; });
+    return `<div class="banner own">${u.persistent ? '✓ <b>Kept when you prestige</b>, thanks to' : '✗ <b>Goes back to 0 when you prestige</b> until you reach'} ${lines.join(' · ')}</div>`;
+  }
+
   // ---------- which calculators go where ----------
   let DATA_GBF = {};
   const forEntry = (e) => {
@@ -457,6 +490,7 @@ const LAB = (() => {
       if (S.mult.items[cn]) parts.push(multCalc(cn, e.n + ' capacity'));
     }
     if (id.startsWith('upg:')) parts.push(upgradeCalc(e.k));
+    if (id.startsWith('ach:')) parts.push(achCalc(e.k));
     const special = {
       'cur:gallery_cash': F.cash, 'cur:gallery_beauty': F.cash, 'cur:mining_crystalGreen': () => F.dweller(0), 'cur:mining_crystalYellow': () => F.dweller(1), 'concept:dweller': () => F.dweller(S.system.features.mining.currentSubfeature || 0),
       'cur:village_faith': F.faith, 'cur:village_blessing': F.faith, 'cur:horde_soulCorrupted': F.souls, 'cur:horde_soulEmpowered': F.souls, 'concept:rareloot': F.souls,
@@ -679,7 +713,7 @@ const LAB = (() => {
     meta: () => {
       const gs = [];
       const ach = Object.entries(S.achievement);
-      gs.push(group('ach', 'Achievements: next level', ach.filter(([, a]) => a.cap === null || a.level < a.cap).map(([k, a]) => { const v = tryv(() => a.value(), 0), need = tryv(() => a.milestones(a.level), 0); const rel = a.relic?.[a.level]; return item('ach:' + k, `Level ${a.level}${a.cap ? '/' + a.cap : ''}.${rel ? ` The next level gives the relic ${link('relic:' + rel)}.` : ''}<br>${bar(v, need)}`, ratio(v, need)); }), ach.length, 'Each level makes gems grow faster.'));
+      gs.push(group('ach', 'Achievements: next level', ach.filter(([, a]) => a.cap === null || a.level < a.cap).map(([k, a]) => { const v = tryv(() => a.value(), 0), need = tryv(() => a.milestones(a.level), 0); const rw = achRewards(a, a.level + 1); return item('ach:' + k, `Level ${a.level}${a.cap ? '/' + a.cap : ''}.${rw.length ? ` The next level gives: ${rw.join(', ')}.` : ''}<br>${bar(v, need)}`, ratio(v, need)); }), ach.length, 'Each level makes gems grow faster.'));
       const books = Object.entries(S.school.book);
       gs.push(group('book', 'Books you do not have', books.filter(([, b]) => !b.owned).map(([k, b]) => { const part = S.meta.globalLevelParts[b.feature + '_' + b.subfeature] ?? 0; return item('book:' + k, `${nm('feat:' + b.feature)}: shows up at ${b.minGL} GL in that part.<br>${bar(part, b.minGL)}`, ratio(part, b.minGL)); }), books.length));
       const qs = [];
@@ -722,8 +756,8 @@ const LAB = (() => {
     const out = [];
     for (const [k, a] of Object.entries(S.achievement)) {
       if (a.cap !== null && a.level >= a.cap) continue;
-      const v = tryv(() => a.value(), 0), need = tryv(() => a.milestones(a.level), 0); const rel = a.relic?.[a.level];
-      out.push(item('ach:' + k, `<span class="tag">${esc(nm('feat:' + a.feature))}</span> Level ${a.level} → ${a.level + 1}${rel ? `, reward: relic ${link('relic:' + rel)}` : ''}.<br>${bar(v, need)}`, ratio(v, need)));
+      const v = tryv(() => a.value(), 0), need = tryv(() => a.milestones(a.level), 0); const rw = achRewards(a, a.level + 1);
+      out.push(item('ach:' + k, `<span class="tag">${esc(nm('feat:' + a.feature))}</span> Level ${a.level} → ${a.level + 1}${rw.length ? `, reward: ${rw.join(', ')}` : ''}.<br>${bar(v, need)}`, ratio(v, need)));
     }
     const qs = [];
     for (const [g, gen] of Object.entries(S.general)) for (const [q, qu] of Object.entries(gen.quests)) {
@@ -920,7 +954,7 @@ const LAB = (() => {
         case 'subject': { const sj = S.school.subject[k]; if (!sj) return null; return U(sj.unlock) ? yes(`Unlocked (grade ${sj.grade})`) : no('Not unlocked yet'); }
         case 'ach': { const a = S.achievement[k]; if (!a) return null; const cap = a.cap ?? null; return cap !== null && a.level >= cap ? yes(`Complete (level ${a.level} of ${cap})`) : a.level > 0 ? part(`Level ${a.level}${cap !== null ? ` of ${cap}` : ''}`) : no('Not started (level 0)'); }
         case 'quest': { const [g, q] = k.split('.'); const Q = S.general[g]?.quests?.[q]; if (!Q) return null; const n = (Q.stages || []).length; return Q.stage >= n ? yes(`Complete (${n} of ${n} steps)`) : Q.stage > 0 ? part(`Step ${Q.stage + 1} of ${n}`) : no(`Not started (${n} steps)`); }
-        case 'upg': { const u = S.upgrade.item[k]; if (!u) return null; const cap = u.cap ?? null; if (cap !== null && u.level >= cap) return yes(`Maxed (level ${u.level})`); if (u.level > 0) return yes(`Level ${u.level}${cap !== null ? ` of ${cap}` : ''}`); if ((u.highestLevel || 0) > 0) return part('Not bought this run', `Your best was level ${u.highestLevel}. It resets when you prestige.`); return no('Never bought'); }
+        case 'upg': { const u = S.upgrade.item[k]; if (!u) return null; const cap = u.cap ?? null; if (cap !== null && u.level >= cap) return yes(`Maxed (level ${u.level})`); if (u.level > 0) return yes(`Level ${u.level}${cap !== null ? ` of ${cap}` : ''}`, u.persistent ? 'Kept when you prestige.' : ''); if ((u.highestLevel || 0) > 0) return part('Not bought this run', `Your best was level ${u.highestLevel}. ${u.persistent ? 'Kept when you prestige.' : 'It resets when you prestige.'}`); return no('Never bought'); }
         case 'cur': { const c = S.currency[k]; if (!c) return null; const t = S.stat[k]?.total ?? 0; return t > 0 || c.value > 0 ? yes(`You have ${fmt(c.value)}`, t > 0 ? `${fmt(t)} gained in total.` : '') : no('Never gained yet'); }
         default: return null;
       }
@@ -958,7 +992,7 @@ const LAB = (() => {
         case 'house': return `${nm('upg:' + it.id, it.id)} level${ab}`;
         case 'mile': return `${nm('craft:' + it.id, it.id)} crafting milestones${ab}`;
         case 'bp': { const [c, q] = it.id.split('.'); return `${nm('class:' + c, c)} quest <i>${esc(q)}</i> completed${ab}`; }
-        case 'ach': return `Achievement ${nm('ach:' + it.id, it.id)} level${ab}`;
+        case 'ach': { const a = S.achievement[it.id]; const rw = []; if (a) for (let L = it.a + 1; L <= it.b; L++) rw.push(...achRewards(a, L)); return `Achievement ${nm('ach:' + it.id, it.id)} level${ab}${rw.length ? ` — <b>${rw.join(', ')}</b>` : ''}`; }
         case 'pres': return `${nm('feat:' + featOf(it.id), featOf(it.id))} prestige #${fmt(it.b, 0)}`;
         case 'relic': return `New relic: ${nm('relic:' + it.id, it.id)}`;
         case 'note': return `New note: ${nm('note:' + it.id, it.id)}`;
@@ -991,5 +1025,8 @@ const LAB = (() => {
       <div class="kpis"><div><small>Global level now</small><b>${S.meta.globalLevel}</b></div>${kpi('Last 24 hours', 864e5)}${kpi('Last 7 days', 6048e5)}${kpi('Last 30 days', 2592e6)}</div>
       ${body}${ev.length ? '<p style="margin-top:16px"><button type="button" class="btn ghost" id="histClear">Clear the log</button></p>' : ''}`;
   };
-  return { ok, status, dropCheck, missingPage, historyPage, forEntry, bindEntry, loadSave, clearSave, init, info, error: () => bootError, fmt, time };
+  // upgrade kept at prestige: true (kept now), false (an achievement can keep it, not yet), null (no achievement keeps it)
+  const keptState = (e) => { if (!ok || !e || !e.id.startsWith('upg:')) return null; const u = S.upgrade.item[e.k]; if (!u) return null; if (u.persistent) return true; return (keepIndex()[e.k] || []).length ? false : null; };
+  const topBanner = (e) => (ok && e && e.id.startsWith('upg:')) ? tryv(() => keepCalc(e.k), '') : '';
+  return { ok, status, dropCheck, topBanner, keptState, missingPage, historyPage, forEntry, bindEntry, loadSave, clearSave, init, info, error: () => bootError, fmt, time };
 })();
