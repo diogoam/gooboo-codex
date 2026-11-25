@@ -3,7 +3,10 @@
   // compara com a anterior. Cada diferença vira um registro: de onde veio cada ponto de Global level (as 8 partes do
   // meta.globalLevelParts e a causa de cada uma) e o resto que mudou (achievement, relic, note, card, shiny, livro,
   // unlock, prestige). Na 1ª foto depois de abrir o jogo, a diferença é o que aconteceu com o jogo fechado.
-  // Só lê o jogo; guarda em localStorage (gcodex_hsnap = última foto, gcodex_hist = registros, no máx. 600).
+  // 1.10.2: um log por save (playerId). Quando um save é carregado (abrir o jogo, importar, outro save), compara a hora
+  // em que aquele save foi gravado (agora − system.offlineTime) com a última foto: mais antigo → os registros depois dele
+  // são marcados como linha do tempo abandonada (não apaga, sai dos totais); mais novo → "save from elsewhere".
+  // Só lê o jogo; guarda em localStorage (gcodex_hsnap2 = última foto por save, gcodex_hist2 = registros por save, 600 cada).
   const HISTORY = (() => {
     const K_SNAP = 'gcodex_hsnap', K_LOG = 'gcodex_hist', K_SINCE = 'gcodex_hsince', MAX = 600;
     const lsJ = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -30,6 +33,9 @@
       o.book = Object.keys(S.school?.book || {}).filter(k => S.school.book[k].owned);
       o.unl = Object.keys(S.unlock || {}).filter(k => S.unlock[k].use);
       o.pres = {}; for (const k of Object.keys(S.stat || {})) if (/_prestigeCount$/.test(k)) o.pres[k] = st(k);
+      o.off = S.system.offlineTime ?? 0; // muda a cada save carregado (abrir o jogo ou importar)
+      o.tot = {}; for (const [k, v] of Object.entries(S.stat || {})) if (v.total > 0) o.tot[k] = v.total; // totais só sobem numa mesma linha do tempo
+      o.asv = S.system.settings?.general?.items?.autosaveTimer?.value ?? 30;
       return o;
     }
     // causas de cada parte do Global level
@@ -52,22 +58,51 @@
       news('relic', 'relic'); news('note', 'note'); news('card', 'card'); news('shiny', 'shiny'); news('book', 'book'); news('unl', 'unl');
       return { parts, items };
     }
-    let last = lsJ(K_SNAP, null);
+    // ── um log por save (playerId). Formato: gcodex_hist2 = { pid: { since, ev: [...] } }, gcodex_hsnap2 = { pid: última foto }
+    const K_LOGS = 'gcodex_hist2', K_SNAPS = 'gcodex_hsnap2';
+    let books = lsJ(K_LOGS, null), snaps = lsJ(K_SNAPS, null);
+    if (!books) { // migra a 1.10.0/1.10.1 (um log só) para o save da última foto
+      books = {}; snaps = {};
+      const old = lsJ(K_SNAP, null);
+      if (old && old.pid) { books[old.pid] = { since: lsJ(K_SINCE, old.t), ev: log }; snaps[old.pid] = old; }
+      lsP(K_LOGS, books); lsP(K_SNAPS, snaps);
+      try { localStorage.removeItem(K_LOG); localStorage.removeItem(K_SNAP); localStorage.removeItem(K_SINCE); } catch { /* ignore */ }
+    }
+    let curPid = null;
+    const book = pid => (books[pid] = books[pid] || { since: Date.now(), ev: [] });
+    const saveAll = () => { lsP(K_LOGS, books); lsP(K_SNAPS, snaps); };
+    const pushEv = (pid, e) => { const b = book(pid); b.ev.push(e); if (b.ev.length > MAX) b.ev = b.ev.slice(-MAX); };
+    // algum total de estatística caiu = estado de antes do último registro (save mais antigo)
+    const wentBack = (a, b) => { for (const [k, v] of Object.entries(a.tot || {})) if ((b.tot?.[k] ?? 0) < v * (1 - 1e-9) - 1e-9) return true; return b.gl < a.gl; };
     function tick() {
       const s = snap(); if (!s) return;
-      if (!last || last.pid !== s.pid) { last = s; lsP(K_SNAP, s); lsP(K_SINCE, s.t); tick.ran = true; return; }
-      if (s.gl < last.gl) { last = s; lsP(K_SNAP, s); tick.ran = true; return; } // save mais antigo importado: nova base, sem registro // 1ª foto (ou outro save): só a base
-      const d = diff(last, s);
-      if (Object.keys(d.parts).length || d.items.length) {
-        // a 1ª comparação depois de abrir o jogo cobre o tempo com o jogo fechado
-        log.push({ t: s.t, t0: last.t, gl: [last.gl, s.gl], away: !tick.ran, parts: d.parts, items: d.items.slice(0, 200) });
-        if (log.length > MAX) log = log.slice(-MAX);
-        lsP(K_LOG, log);
-      }
-      tick.ran = true;
-      last = s; lsP(K_SNAP, s);
+      const first = !tick.ran; tick.ran = true;
+      const prev = snaps[s.pid];
+      const switched = curPid !== null && curPid !== s.pid;
+      curPid = s.pid;
+      if (!prev) { book(s.pid); snaps[s.pid] = s; saveAll(); return; } // save novo: só a base
+      // um save foi carregado: abrir o jogo, importar um arquivo ou trocar de save
+      const loaded = first || switched || s.off !== prev.off;
+      let src;
+      if (loaded) {
+        const tSave = s.t - (s.off || 0) * 1000;           // quando aquele save foi gravado
+        const tol = Math.max(90, (s.asv || 30) + 30) * 1000; // intervalo de autosave + folga
+        const older = tSave < prev.t - tol || wentBack(prev, s);
+        if (older) {
+          // save mais antigo: o que foi registrado depois dele ficou numa linha do tempo abandonada (não apaga)
+          const cut = Math.min(tSave, prev.t);
+          for (const e of book(s.pid).ev) if (e.t > cut && !e.gone && !e.mark) e.gone = s.t;
+          pushEv(s.pid, { t: s.t, t0: cut, gl: [prev.gl, s.gl], mark: 'older', parts: {}, items: [] });
+          snaps[s.pid] = s; saveAll(); return;
+        }
+        src = tSave > prev.t + tol ? 'elsewhere' : first ? 'closed' : 'load';
+      } else if (s.gl < prev.gl) { snaps[s.pid] = s; saveAll(); return; } // queda sem save carregado: só rebase
+      const d = diff(prev, s);
+      if (Object.keys(d.parts).length || d.items.length) pushEv(s.pid, { t: s.t, t0: prev.t, gl: [prev.gl, s.gl], src: loaded ? src : undefined, parts: d.parts, items: d.items.slice(0, 200) });
+      snaps[s.pid] = s; saveAll();
     }
-    return { tick, events: () => log, clear: () => { log = []; lsP(K_LOG, log); lsP(K_SINCE, Date.now()); }, since: () => lsJ(K_SINCE, null) };
+    const cur = () => curPid ? book(curPid) : { since: null, ev: [] };
+    return { tick, events: () => cur().ev, since: () => cur().since, clear: () => { if (curPid) { books[curPid] = { since: Date.now(), ev: [] }; saveAll(); } }, others: () => Object.keys(books).filter(p => p !== curPid && books[p].ev.length).length };
   })();
   GA.every(20000, () => { try { HISTORY.tick(); } catch (e) { console.warn('[Codex] history', e); } });
   setTimeout(() => { try { HISTORY.tick(); } catch (e) { /* ignore */ } }, 8000);

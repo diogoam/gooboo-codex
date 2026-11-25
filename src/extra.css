@@ -50,3 +50,6 @@ details.back ul.men{columns:1;margin-bottom:8px}
 .hist-ev ul{margin:2px 0 2px 18px;padding:0}
 .hist-ev li{margin:2px 0}
 .hist-ev .up{color:#2e9d5b}
+.hist-gone{opacity:.5}
+.hist-gone li,.hist-gone .hist-h b{text-decoration:line-through}
+.hist-mark{border-style:dashed}

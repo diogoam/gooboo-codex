@@ -1005,7 +1005,7 @@ const LAB = (() => {
     };
     // somas por janela de tempo
     const now = Date.now();
-    const win = ms => { const o = {}; let tot = 0; for (const e of ev) if (e.t >= now - ms) for (const [p, [a, b]] of Object.entries(e.parts)) { o[p] = (o[p] || 0) + (b - a); tot += b - a; } return { o, tot }; };
+    const win = ms => { const o = {}; let tot = 0; for (const e of ev) if (e.t >= now - ms && !e.gone && !e.mark) for (const [p, [a, b]] of Object.entries(e.parts)) { o[p] = (o[p] || 0) + (b - a); tot += b - a; } return { o, tot }; };
     const kpi = (lbl, ms) => { const w = win(ms); const top = Object.entries(w.o).sort((x, y) => y[1] - x[1]).map(([p, n]) => `${glName(p)} +${n}`).join(', '); return `<div><small>${lbl}</small><b>+${w.tot} GL</b><span>${top || 'nothing yet'}</span></div>`; };
     const since = H.since();
     let body = '';
@@ -1014,16 +1014,19 @@ const LAB = (() => {
     for (const e of ev.slice(0, 300)) {
       const dd = day(e.t); if (dd !== lastDay) { body += `<h3 class="mh">${esc(dd)}</h3>`; lastDay = dd; }
       const gl = e.gl[1] - e.gl[0];
-      const when = e.away ? `${esc(day(e.t0) === dd ? hm(e.t0) : day(e.t0) + ' ' + hm(e.t0))} – ${hm(e.t)} <span class="tag">while the game was closed</span>` : hm(e.t);
+      const span = `${esc(day(e.t0) === dd ? hm(e.t0) : day(e.t0) + ' ' + hm(e.t0))} – ${hm(e.t)}`;
+      if (e.mark === 'older') { body += `<div class="hist-ev hist-mark"><div class="hist-h"><span class="num">${hm(e.t)}</span> <b>An older save was loaded</b> (saved around ${esc(day(e.t0) === dd ? hm(e.t0) : day(e.t0) + ' ' + hm(e.t0))}, GL ${e.gl[0]} → ${e.gl[1]}).</div><p class="hint">Entries recorded after that save are struck through below: they belong to the timeline you left and no longer count in the totals.</p></div>`; continue; }
+      const src = e.src || (e.away ? 'closed' : null);
+      const when = src === 'closed' ? `${span} <span class="tag">while the game was closed</span>` : src === 'elsewhere' ? `${span} <span class="tag">save from elsewhere loaded</span>` : src === 'load' ? `${span} <span class="tag">save loaded</span>` : hm(e.t);
       const byPart = {}; const other = [];
       for (const it of e.items) (it.p && e.parts[it.p] ? (byPart[it.p] = byPart[it.p] || []) : other).push(it);
       const partsHTML = Object.entries(e.parts).map(([p, [a, b]]) => `<li><b>${glName(p)}</b> <span class="num">${a} → ${b}</span> <b class="up">+${b - a} GL</b>${(byPart[p] || []).length ? `<ul>${byPart[p].slice(0, 30).map(it => `<li>${cause(it)}</li>`).join('')}</ul>` : ''}</li>`).join('');
       const otherHTML = other.length ? `<li class="hint">Also:<ul>${other.slice(0, 40).map(it => `<li>${cause(it)}</li>`).join('')}${other.length > 40 ? `<li class="hint">… and ${other.length - 40} more</li>` : ''}</ul></li>` : '';
-      body += `<div class="hist-ev"><div class="hist-h"><span class="num">${when}</span>${gl ? ` <b>GL ${e.gl[0]} → ${e.gl[1]}</b> <b class="up">+${gl}</b>` : ''}</div><ul>${partsHTML}${otherHTML}</ul></div>`;
+      body += `<div class="hist-ev${e.gone ? ' hist-gone' : ''}"${e.gone ? ' title="From a timeline you left (an older save was loaded)"' : ''}><div class="hist-h">${e.gone ? '<span class="tag">timeline you left</span> ' : ''}<span class="num">${when}</span>${gl ? ` <b>GL ${e.gl[0]} → ${e.gl[1]}</b> <b class="up">+${gl}</b>` : ''}</div><ul>${partsHTML}${otherHTML}</ul></div>`;
     }
-    return head + `<p class="hint">What changed in your game and why your Global level went up, newest first. Recording started ${since ? esc(day(since) + ' ' + hm(since)) : 'now'}: the game keeps no history of its own, so nothing before that can be shown. The Codex only reads your game.</p>
+    return head + `<p class="hint">What changed in your game and why your Global level went up, newest first. Recording for this save started ${since ? esc(day(since) + ' ' + hm(since)) : 'now'}: the game keeps no history of its own, so nothing before that can be shown. Each save has its own log${H.others && H.others() ? ` (logs of ${H.others()} other save${H.others() > 1 ? 's' : ''} are kept and come back when you load that save)` : ''}. The Codex only reads your game.</p>
       <div class="kpis"><div><small>Global level now</small><b>${S.meta.globalLevel}</b></div>${kpi('Last 24 hours', 864e5)}${kpi('Last 7 days', 6048e5)}${kpi('Last 30 days', 2592e6)}</div>
-      ${body}${ev.length ? '<p style="margin-top:16px"><button type="button" class="btn ghost" id="histClear">Clear the log</button></p>' : ''}`;
+      ${body}${ev.length ? '<p style="margin-top:16px"><button type="button" class="btn ghost" id="histClear">Clear this save&#39;s log</button></p>' : ''}`;
   };
   // upgrade kept at prestige: true (kept now), false (an achievement can keep it, not yet), null (no achievement keeps it)
   const keptState = (e) => { if (!ok || !e || !e.id.startsWith('upg:')) return null; const u = S.upgrade.item[e.k]; if (!u) return null; if (u.persistent) return true; return (keepIndex()[e.k] || []).length ? false : null; };

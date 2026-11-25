@@ -223,7 +223,7 @@ function renderGuides(){
 function renderHistory(){
   pageEl.innerHTML = '<button type="button" class="back-btn" id="toList">← Index</button>' + LAB.historyPage();
   $('toList').onclick = () => appEl.classList.remove('reading');
-  const c = $('histClear'); if (c) c.onclick = () => { if (!c.dataset.sure) { c.dataset.sure = '1'; c.textContent = 'Click again to clear the whole log'; return; } env.HIST && env.HIST.clear(); renderHistory(); };
+  const c = $('histClear'); if (c) c.onclick = () => { if (!c.dataset.sure) { c.dataset.sure = '1'; c.textContent = 'Click again to clear this save\'s log'; return; } env.HIST && env.HIST.clear(); renderHistory(); };
 }
 let missTab = lsGet('miss') || 'resumo';
 function renderMissing(){
