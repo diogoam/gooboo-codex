@@ -282,6 +282,10 @@ function refreshStatus(){
   const i = LAB.info();
   if (!LAB.ok || !i) { liveTxt.textContent = 'Game not found'; liveDot.classList.remove('on'); return; }
   liveTxt.textContent = `Live · GL ${i.gl}`; liveDot.classList.add('on');
+  // aviso: o jogo não está salvando nesta aba
+  let w = null; try { w = env.HIST && env.HIST.status(); } catch (err) { /* ignore */ }
+  const ns = w && (w.dup ? 'Not saving: another Gooboo tab is open. Progress in this tab is lost; close one of them.' : (w.summarySince && Date.now() - w.summarySince > 120000) ? 'Not saving: the offline summary is still open. Close it so the game saves again.' : null);
+  if (ns) { liveTxt.textContent = '⚠ ' + ns; liveTxt.title = ns; liveDot.classList.remove('on'); liveTxt.style.color = '#dc2626'; } else { liveTxt.title = ''; liveTxt.style.color = ''; }
 }
 // Atualiza a página com os valores atuais do jogo. Não atualiza se você estiver editando uma calculadora.
 function refresh(force){

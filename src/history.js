@@ -35,6 +35,7 @@
       o.pres = {}; for (const k of Object.keys(S.stat || {})) if (/_prestigeCount$/.test(k)) o.pres[k] = st(k);
       o.off = S.system.offlineTime ?? 0; // muda a cada save carregado (abrir o jogo ou importar)
       o.tot = {}; for (const [k, v] of Object.entries(S.stat || {})) if (v.total > 0) o.tot[k] = v.total; // totais só sobem numa mesma linha do tempo
+      o.scr = S.system.screen;
       o.asv = S.system.settings?.general?.items?.autosaveTimer?.value ?? 30;
       return o;
     }
@@ -74,7 +75,19 @@
     const pushEv = (pid, e) => { const b = book(pid); b.ev.push(e); if (b.ev.length > MAX) b.ev = b.ev.slice(-MAX); };
     // algum total de estatística caiu = estado de antes do último registro (save mais antigo)
     const wentBack = (a, b) => { for (const [k, v] of Object.entries(a.tot || {})) if ((b.tot?.[k] ?? 0) < v * (1 - 1e-9) - 1e-9) return true; return b.gl < a.gl; };
+    // 1.10.3: a aba sabe se o jogo está salvando. O jogo não salva numa aba duplicada ("already open", main.js) nem com o
+    // resumo offline aberto (js/tick.js). Lê a hora do último save gravado no navegador (goobooSavefile) para confirmar.
+    const st = { dup: false, summarySince: null, lastSave: null, savePid: null };
+    const readSave = () => { try { const raw = localStorage.getItem('goobooSavefile'); if (!raw) return; const f = JSON.parse(raw[0] === '{' ? raw : atob(raw)); st.lastSave = (f.timestamp || 0) * 1000; st.savePid = f.playerId ?? null; } catch { /* ignore */ } };
     function tick() {
+      const S0 = GA.store()?.state;
+      st.dup = S0?.system?.screen === 'tab-duplicate';
+      st.summarySince = S0?.system?.screen === 'offlineSummary' ? (st.summarySince ?? Date.now()) : null;
+      readSave();
+      // aba duplicada: não grava nada (o progresso dela não é salvo e o log é dividido com a outra aba)
+      if (st.dup) return;
+      // relê o que outra aba possa ter gravado antes de mexer
+      books = lsJ(K_LOGS, books) || books; snaps = lsJ(K_SNAPS, snaps) || snaps;
       const s = snap(); if (!s) return;
       const first = !tick.ran; tick.ran = true;
       const prev = snaps[s.pid];
@@ -98,11 +111,13 @@
         src = tSave > prev.t + tol ? 'elsewhere' : first ? 'closed' : 'load';
       } else if (s.gl < prev.gl) { snaps[s.pid] = s; saveAll(); return; } // queda sem save carregado: só rebase
       const d = diff(prev, s);
-      if (Object.keys(d.parts).length || d.items.length) pushEv(s.pid, { t: s.t, t0: prev.t, gl: [prev.gl, s.gl], src: loaded ? src : undefined, parts: d.parts, items: d.items.slice(0, 200) });
+      if (Object.keys(d.parts).length || d.items.length) pushEv(s.pid, { t: s.t, t0: prev.t, gl: [prev.gl, s.gl], src: loaded ? src : undefined, summary: s.scr === 'offlineSummary' ? 1 : undefined, parts: d.parts, items: d.items.slice(0, 200) });
+      // registro confirmado quando o jogo grava um save com hora igual ou depois dele
+      if (st.lastSave && st.savePid === s.pid) for (const e of book(s.pid).ev) if (!e.saved && !e.mark && !e.gone && e.t <= st.lastSave + 1000) e.saved = 1;
       snaps[s.pid] = s; saveAll();
     }
     const cur = () => curPid ? book(curPid) : { since: null, ev: [] };
-    return { tick, events: () => cur().ev, since: () => cur().since, clear: () => { if (curPid) { books[curPid] = { since: Date.now(), ev: [] }; saveAll(); } }, others: () => Object.keys(books).filter(p => p !== curPid && books[p].ev.length).length };
+    return { tick, status: () => ({ ...st, pid: curPid }), events: () => cur().ev, since: () => cur().since, clear: () => { if (curPid) { books[curPid] = { since: Date.now(), ev: [] }; saveAll(); } }, others: () => Object.keys(books).filter(p => p !== curPid && books[p].ev.length).length };
   })();
   GA.every(20000, () => { try { HISTORY.tick(); } catch (e) { console.warn('[Codex] history', e); } });
   setTimeout(() => { try { HISTORY.tick(); } catch (e) { /* ignore */ } }, 8000);

@@ -53,3 +53,4 @@ details.back ul.men{columns:1;margin-bottom:8px}
 .hist-gone{opacity:.5}
 .hist-gone li,.hist-gone .hist-h b{text-decoration:line-through}
 .hist-mark{border-style:dashed}
+.hist-un{border-color:rgba(239,68,68,.6)}

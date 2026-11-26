@@ -975,7 +975,12 @@ const LAB = (() => {
     const H = env.HIST;
     const head = `<div class="crumbs"><span class="tag">Tool</span></div><h2>Progress log</h2>`;
     if (!H || !ok) return head + '<div class="banner">The progress log needs the live game.</div>';
+    { let w = {}; try { w = H.status ? H.status() : {}; } catch (err) { /* ignore */ }
+      if (w.dup) return head + '<div class="banner own">⚠ <b>This tab is not saving.</b> Another Gooboo tab is open, and the game only saves in the first one. The game (and the helpers) keep running here, but nothing done in this tab is ever saved. Close one of the tabs. The Codex does not record anything from this tab.</div>'; }
     const ev = H.events().slice().reverse();
+    let hs = {}; try { hs = H.status ? H.status() : {}; } catch (err) { /* ignore */ }
+    const tolS = 120000;
+    const unsaved = e => !e.saved && !e.gone && !e.mark && hs.lastSave && hs.savePid === hs.pid && e.t > hs.lastSave + 1000 && Date.now() - e.t > tolS;
     const glName = p => esc(GB.en?.globalLevel?.[p] || p);
     const D = (t, o) => new Date(t).toLocaleString('en-GB', o);
     const hm = t => D(t, { hour: '2-digit', minute: '2-digit' });
@@ -1005,10 +1010,12 @@ const LAB = (() => {
     };
     // somas por janela de tempo
     const now = Date.now();
-    const win = ms => { const o = {}; let tot = 0; for (const e of ev) if (e.t >= now - ms && !e.gone && !e.mark) for (const [p, [a, b]] of Object.entries(e.parts)) { o[p] = (o[p] || 0) + (b - a); tot += b - a; } return { o, tot }; };
+    const win = ms => { const o = {}; let tot = 0; for (const e of ev) if (e.t >= now - ms && !e.gone && !e.mark && !unsaved(e)) for (const [p, [a, b]] of Object.entries(e.parts)) { o[p] = (o[p] || 0) + (b - a); tot += b - a; } return { o, tot }; };
     const kpi = (lbl, ms) => { const w = win(ms); const top = Object.entries(w.o).sort((x, y) => y[1] - x[1]).map(([p, n]) => `${glName(p)} +${n}`).join(', '); return `<div><small>${lbl}</small><b>+${w.tot} GL</b><span>${top || 'nothing yet'}</span></div>`; };
     const since = H.since();
     let body = '';
+    if (hs.summarySince && Date.now() - hs.summarySince > tolS) body += `<div class="banner own">⚠ <b>The game is not saving.</b> The offline summary has been open since ${hm(hs.summarySince)}; the game does not save on that screen, even while the helpers play. Close it.</div>`;
+    if (hs.lastSave && hs.savePid === hs.pid) body += `<p class="hint">Last game save: ${esc(day(hs.lastSave) + ' ' + hm(hs.lastSave))}. Entries newer than that are marked "not saved" after 2 minutes and do not count in the totals until the game saves.</p>`;
     if (!ev.length) body = `<div class="banner">Nothing recorded yet. The Codex checks your game every 20 seconds (also with the panel closed and the game minimized) and lists here every change: each Global level point with what caused it, plus new achievements, relics, notes, cards, books, unlocks and prestiges.</div>`;
     let lastDay = '';
     for (const e of ev.slice(0, 300)) {
@@ -1022,7 +1029,8 @@ const LAB = (() => {
       for (const it of e.items) (it.p && e.parts[it.p] ? (byPart[it.p] = byPart[it.p] || []) : other).push(it);
       const partsHTML = Object.entries(e.parts).map(([p, [a, b]]) => `<li><b>${glName(p)}</b> <span class="num">${a} → ${b}</span> <b class="up">+${b - a} GL</b>${(byPart[p] || []).length ? `<ul>${byPart[p].slice(0, 30).map(it => `<li>${cause(it)}</li>`).join('')}</ul>` : ''}</li>`).join('');
       const otherHTML = other.length ? `<li class="hint">Also:<ul>${other.slice(0, 40).map(it => `<li>${cause(it)}</li>`).join('')}${other.length > 40 ? `<li class="hint">… and ${other.length - 40} more</li>` : ''}</ul></li>` : '';
-      body += `<div class="hist-ev${e.gone ? ' hist-gone' : ''}"${e.gone ? ' title="From a timeline you left (an older save was loaded)"' : ''}><div class="hist-h">${e.gone ? '<span class="tag">timeline you left</span> ' : ''}<span class="num">${when}</span>${gl ? ` <b>GL ${e.gl[0]} → ${e.gl[1]}</b> <b class="up">+${gl}</b>` : ''}</div><ul>${partsHTML}${otherHTML}</ul></div>`;
+      const un = unsaved(e);
+      body += `<div class="hist-ev${e.gone ? ' hist-gone' : un ? ' hist-un' : ''}"${e.gone ? ' title="From a timeline you left (an older save was loaded)"' : ''}><div class="hist-h">${e.gone ? '<span class="tag">timeline you left</span> ' : un ? '<span class="tag" title="The game has not saved since this happened. If the game closes now, it is lost.">⚠ not saved</span> ' : ''}${e.summary && !e.saved ? '<span class="tag" title="Recorded while the offline summary was open: the game does not save on that screen">offline summary open</span> ' : ''}<span class="num">${when}</span>${gl ? ` <b>GL ${e.gl[0]} → ${e.gl[1]}</b> <b class="up">+${gl}</b>` : ''}</div><ul>${partsHTML}${otherHTML}</ul></div>`;
     }
     return head + `<p class="hint">What changed in your game and why your Global level went up, newest first. Recording for this save started ${since ? esc(day(since) + ' ' + hm(since)) : 'now'}: the game keeps no history of its own, so nothing before that can be shown. Each save has its own log${H.others && H.others() ? ` (logs of ${H.others()} other save${H.others() > 1 ? 's' : ''} are kept and come back when you load that save)` : ''}. The Codex only reads your game.</p>
       <div class="kpis"><div><small>Global level now</small><b>${S.meta.globalLevel}</b></div>${kpi('Last 24 hours', 864e5)}${kpi('Last 7 days', 6048e5)}${kpi('Last 30 days', 2592e6)}</div>
